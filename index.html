@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#9b5965" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Love OS" />
+    <meta name="description" content="Love OS v1.0 单人恋爱记录助手" />
+    <title>Love OS</title>
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/src/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="hero">
+        <p class="eyebrow">LOVE OS · V1.0</p>
+        <h1>把我们的小事，慢慢写成故事。</h1>
+        <p class="subtitle">单人记录 · 本地优先 · 双人同步待定</p>
+        <p class="privacy-note"><span aria-hidden="true">●</span> 记录只保存在当前浏览器，不会上传。</p>
+        <p class="device-note">iPhone：用 Safari 打开后，点“分享” → “添加到主屏幕”。</p>
+      </header>
+
+      <section class="overview" aria-labelledby="overview-title">
+        <div class="section-heading">
+          <h2 id="overview-title">我们的此刻</h2>
+          <span>根据本机记录自动更新</span>
+        </div>
+        <div class="overview-grid">
+          <article class="overview-card">
+            <strong id="days-together">—</strong>
+            <h3>相恋天数</h3>
+            <p id="days-together-note">先记录恋爱纪念日</p>
+          </article>
+          <article class="overview-card">
+            <strong id="month-records">0</strong>
+            <h3>本月记录</h3>
+            <p>不含自动生成的回忆总结</p>
+          </article>
+          <article class="overview-card">
+            <strong id="pending-dates">0</strong>
+            <h3>待完成约会</h3>
+            <p>想去和计划中的约会</p>
+          </article>
+          <article class="overview-card">
+            <strong id="next-anniversary">—</strong>
+            <h3>最近纪念日</h3>
+            <p id="next-anniversary-note">还没有纪念日</p>
+          </article>
+        </div>
+      </section>
+
+      <section aria-labelledby="modules-title">
+        <div class="section-heading">
+          <h2 id="modules-title">记录空间</h2>
+          <span>6 个模块已可用</span>
+        </div>
+        <div id="module-grid" class="module-grid"></div>
+      </section>
+
+      <section class="backup-panel" aria-labelledby="backup-title">
+        <div>
+          <p class="eyebrow">数据安全</p>
+          <h2 id="backup-title">备份与恢复</h2>
+          <p class="panel-description">导出一个包含文字和照片的本地文件，换设备时再导入恢复。</p>
+        </div>
+        <div class="backup-controls">
+          <button id="export-backup" class="secondary-button" type="button">导出备份</button>
+          <label class="secondary-button file-button" for="import-backup">恢复备份</label>
+          <input id="import-backup" class="visually-hidden" type="file" accept="application/json,.json" />
+        </div>
+        <p id="backup-status" class="backup-status" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="workspace" class="workspace" aria-labelledby="form-title">
+        <div class="form-panel">
+          <p class="eyebrow">写下一刻</p>
+          <h2 id="form-title"></h2>
+          <p id="form-description" class="panel-description"></p>
+          <form id="record-form">
+            <div id="form-fields" class="form-fields"></div>
+            <div class="form-actions">
+              <button class="primary-button" type="submit">保存到本机</button>
+              <button id="cancel-edit" class="secondary-button" type="button" hidden>取消编辑</button>
+            </div>
+          </form>
+          <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
+        </div>
+
+        <div class="records-panel" aria-labelledby="records-title">
+          <div class="records-heading">
+            <div>
+              <p class="eyebrow">最近记录</p>
+              <h2 id="records-title">留住的小事</h2>
+            </div>
+            <span id="record-count" class="record-count"></span>
+          </div>
+          <label class="search-field" for="record-search">
+            <span class="visually-hidden">搜索当前模块记录</span>
+            <input id="record-search" type="search" placeholder="搜索当前模块的记录" autocomplete="off" />
+          </label>
+          <div id="record-list" class="record-list"></div>
+        </div>
+      </section>
+
+      <footer>
+        Love OS v1.0 · 数据仅存本机浏览器，请定期导出备份。
+      </footer>
+    </main>
+    <noscript>Love OS 需要开启 JavaScript 才能保存记录。</noscript>
+    <script type="module" src="/src/app.js"></script>
+  </body>
+</html>
+
