@@ -1,9 +1,9 @@
-import { recordKinds } from "./domain.js";
+import { recordKinds } from "./domain.js?v=8";
 
 export const LEGACY_STORAGE_KEY = "love-os.records.v1";
 export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;
 export const BACKUP_FORMAT = "love-os-backup";
-export const BACKUP_VERSION = 1;
+export const BACKUP_VERSION = 2;
 
 const DATABASE_NAME = "love-os";
 const DATABASE_VERSION = 1;
@@ -64,7 +64,7 @@ export async function parseBackup(source) {
   } catch {
     throw new Error("备份文件不是有效的 Love OS 文件。");
   }
-  if (backup?.format !== BACKUP_FORMAT || backup.version !== BACKUP_VERSION || !Array.isArray(backup.records)) {
+  if (backup?.format !== BACKUP_FORMAT || ![1, BACKUP_VERSION].includes(backup.version) || !Array.isArray(backup.records)) {
     throw new Error("备份文件版本不受支持。");
   }
   if (backup.records.length > 10000) throw new Error("备份文件包含过多记录。");
@@ -110,20 +110,49 @@ export function readLegacyRecords(storage = globalThis.localStorage) {
 
 async function serializeRecord(record) {
   const payload = { ...record.payload };
-  if (payload.photo instanceof Blob) {
-    const bytes = new Uint8Array(await payload.photo.arrayBuffer());
-    let binary = "";
-    for (let offset = 0; offset < bytes.length; offset += 32768) {
-      binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
-    }
-    payload.photo = {
-      backupType: "photo",
-      name: payload.photo.name || "photo",
-      mimeType: payload.photo.type || "",
-      data: btoa(binary),
-    };
+  if (payload.photo instanceof Blob) payload.photo = await serializePhoto(payload.photo);
+  if (Array.isArray(payload.photos)) {
+    payload.photos = await Promise.all(payload.photos.map(serializePhoto));
   }
   return { ...record, payload };
+}
+
+async function serializePhoto(photo) {
+  if (!(photo instanceof Blob)) throw new Error("照片无法读取，备份未导出。请保留本机记录。");
+  const bytes = new Uint8Array(await photo.arrayBuffer());
+  let binary = "";
+  for (let offset = 0; offset < bytes.length; offset += 32768) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + 32768));
+  }
+  return {
+    backupType: "photo",
+    name: photo.name || "photo",
+    mimeType: photo.type || "",
+    data: btoa(binary),
+  };
+}
+
+function deserializePhoto(photo) {
+  if (
+    photo?.backupType !== "photo" || typeof photo.data !== "string" ||
+    typeof photo.name !== "string" || typeof photo.mimeType !== "string"
+  ) {
+    throw new Error("备份文件中的照片格式异常。");
+  }
+  if (photo.data.length > Math.ceil(MAX_PHOTO_BYTES / 3) * 4 + 4) {
+    throw new Error("备份文件中的照片超过 20 MB。");
+  }
+  let bytes;
+  try {
+    const binary = atob(photo.data);
+    bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  } catch {
+    throw new Error("备份文件中的照片无法读取。");
+  }
+  validatePhotoFile({ name: photo.name, type: photo.mimeType, size: bytes.length });
+  return typeof File === "function"
+    ? new File([bytes], photo.name, { type: photo.mimeType })
+    : new Blob([bytes], { type: photo.mimeType });
 }
 
 async function deserializeRecord(record) {
@@ -139,27 +168,11 @@ async function deserializeRecord(record) {
 
   const payload = { ...record.payload };
   if (payload.photo !== undefined) {
-    const photo = payload.photo;
-    if (
-      photo?.backupType !== "photo" || typeof photo.data !== "string" ||
-      typeof photo.name !== "string" || typeof photo.mimeType !== "string"
-    ) {
-      throw new Error("备份文件中的照片格式异常。");
-    }
-    if (photo.data.length > Math.ceil(MAX_PHOTO_BYTES / 3) * 4 + 4) {
-      throw new Error("备份文件中的照片超过 20 MB。");
-    }
-    let bytes;
-    try {
-      const binary = atob(photo.data);
-      bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
-    } catch {
-      throw new Error("备份文件中的照片无法读取。");
-    }
-    validatePhotoFile({ name: photo.name, type: photo.mimeType, size: bytes.length });
-    payload.photo = typeof File === "function"
-      ? new File([bytes], photo.name, { type: photo.mimeType })
-      : new Blob([bytes], { type: photo.mimeType });
+    payload.photo = deserializePhoto(payload.photo);
+  }
+  if (payload.photos !== undefined) {
+    if (!Array.isArray(payload.photos)) throw new Error("备份文件中的照片列表格式异常。");
+    payload.photos = payload.photos.map(deserializePhoto);
   }
 
   return {
@@ -209,4 +222,3 @@ function runTransaction(database, mode, action) {
     transaction.onabort = () => reject(transaction.error);
   });
 }
-

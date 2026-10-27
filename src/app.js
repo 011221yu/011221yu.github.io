@@ -3,10 +3,11 @@ import {
   createMemorySummary,
   createRecord,
   daysUntilAnniversary,
+  getRecordPhotos,
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js";
+} from "./domain.js?v=8";
 import {
   addRecord,
   createBackup,
@@ -14,7 +15,7 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js";
+} from "./storage.js?v=8";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -36,6 +37,13 @@ const monthRecords = document.querySelector("#month-records");
 const pendingDates = document.querySelector("#pending-dates");
 const nextAnniversary = document.querySelector("#next-anniversary");
 const nextAnniversaryNote = document.querySelector("#next-anniversary-note");
+const editor = document.querySelector("#editor");
+const kindPicker = document.querySelector("#entry-kind");
+const moreMenu = document.querySelector("#more-menu");
+const photoViewer = document.querySelector("#photo-viewer");
+const viewerImage = document.querySelector("#viewer-image");
+const viewerError = document.querySelector("#viewer-error");
+const toast = document.querySelector("#toast");
 
 const formDefinitions = Object.freeze({
   timeline: {
@@ -110,10 +118,21 @@ const formDefinitions = Object.freeze({
 });
 
 const moduleNames = Object.fromEntries(modules.map((module) => [module.kind, module.title]));
-let selectedKind = "daily";
+let selectedKind = "all";
+let formKind = "daily";
 let records = [];
 let storageReady = true;
 let editingId = null;
+let selectedPhotos = [];
+let previewUrls = [];
+let recordPhotoUrls = [];
+let saving = false;
+let draftDirty = false;
+let albumView = false;
+let viewerPhotos = [];
+let viewerIndex = 0;
+let viewerUrl;
+let toastTimer;
 
 try {
   records = await readRecords();
@@ -122,74 +141,123 @@ try {
   showStatus(error.message, true);
 }
 
-for (const module of modules) {
+const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", date: "pin", anniversary: "calendar", memory: "spark" };
+for (const module of [{ kind: "all", title: "全部手账" }, ...modules]) {
   const card = document.createElement("button");
-  const enabled = Boolean(formDefinitions[module.kind]);
   card.type = "button";
   card.className = "module-card";
   card.dataset.kind = module.kind;
-  card.disabled = !enabled;
   card.setAttribute("aria-pressed", String(module.kind === selectedKind));
-
-  const icon = document.createElement("span");
-  icon.className = "module-icon";
-  icon.setAttribute("aria-hidden", "true");
-  icon.textContent = module.icon;
-
-  const title = document.createElement("h3");
+  const title = document.createElement("span");
+  title.className = "module-label";
   title.textContent = module.title;
-
-  const description = document.createElement("p");
-  description.textContent = module.description;
-
-  const status = document.createElement("span");
-  status.className = "status";
-  status.textContent = enabled ? (module.kind === "memory" ? "可以生成" : "可以记录") : "后续加入";
-
-  card.append(icon, title, description, status);
-  if (enabled) card.addEventListener("click", () => selectModule(module.kind));
+  const count = document.createElement("span");
+  count.className = "module-count";
+  card.append(createIcon(icons[module.kind]), title, count);
+  card.addEventListener("click", () => selectModule(module.kind));
   grid.append(card);
 }
 
+document.querySelector("#today-label").textContent = new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+document.querySelector("#new-entry").addEventListener("click", () => openEditor());
+document.querySelector("#mobile-compose").addEventListener("click", () => openEditor());
+document.querySelector("#close-editor").addEventListener("click", closeEditor);
+editor.addEventListener("cancel", (event) => { event.preventDefault(); closeEditor(); });
+form.addEventListener("input", () => { draftDirty = true; });
+kindPicker.addEventListener("change", () => {
+  if (draftDirty && !window.confirm("切换记录类型会清空当前未保存内容，继续吗？")) {
+    kindPicker.value = formKind;
+    return;
+  }
+  formKind = kindPicker.value;
+  draftDirty = false;
+  renderForm();
+  showStatus("", false);
+});
+document.querySelectorAll("[data-browse]").forEach((button) => button.addEventListener("click", () => {
+  moreMenu.close();
+  selectModule(button.dataset.browse);
+  workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+}));
+document.querySelectorAll("[data-create]").forEach((button) => button.addEventListener("click", () => openEditor(button.dataset.create)));
+document.querySelector("#open-more").addEventListener("click", () => openDialog(moreMenu));
+document.querySelector("[data-close-more]").addEventListener("click", () => moreMenu.close());
+document.querySelectorAll("[data-backup]").forEach((button) => button.addEventListener("click", () => {
+  moreMenu.close();
+  const panel = document.querySelector("#backup-panel");
+  panel.open = true;
+  panel.scrollIntoView({ behavior: "smooth", block: "center" });
+  panel.querySelector("summary").focus();
+}));
+for (const dialog of [editor, moreMenu, photoViewer]) {
+  dialog.addEventListener("close", () => document.body.classList.toggle("modal-open", Boolean(document.querySelector("dialog[open]"))));
+}
+document.querySelector("#view-journal").addEventListener("click", () => { albumView = false; renderRecords(); });
+document.querySelector("#view-album").addEventListener("click", () => { albumView = true; renderRecords(); });
+document.querySelector("#close-photo-viewer").addEventListener("click", () => photoViewer.close());
+document.querySelector("#previous-photo").addEventListener("click", () => changePhoto(-1));
+document.querySelector("#next-photo").addEventListener("click", () => changePhoto(1));
+photoViewer.addEventListener("keydown", (event) => {
+  if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+    event.preventDefault();
+    changePhoto(event.key === "ArrowLeft" ? -1 : 1);
+  }
+});
+photoViewer.addEventListener("close", () => {
+  if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+  viewerUrl = undefined;
+  viewerImage.removeAttribute("src");
+  viewerPhotos = [];
+});
+viewerImage.addEventListener("error", () => { viewerImage.hidden = true; viewerError.hidden = false; });
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
-  if (!storageReady) return;
+  if (!storageReady || saving) return;
 
-  const definition = formDefinitions[selectedKind];
+  const definition = formDefinitions[formKind];
   const values = new FormData(form);
+  saving = true;
+  form.inert = true;
+  kindPicker.disabled = true;
+  form.querySelector("button[type='submit']").disabled = true;
 
   try {
     const payload = {};
     for (const field of definition.fields) {
       if (field.type === "generated") continue;
       if (field.type === "file") {
-        const file = values.get(field.name);
-        if (file?.size) payload[field.name] = validatePhotoFile(file);
+        payload.photos = selectedPhotos.map(validatePhotoFile);
       } else {
         payload[field.name] = String(values.get(field.name) ?? "").trim();
       }
     }
     const existing = editingId ? records.find((record) => record.id === editingId) : null;
     const finalPayload = existing ? { ...existing.payload, ...payload } : payload;
-    if (selectedKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
-    records = await addRecord(existing ? updateRecord(existing, finalPayload) : createRecord(selectedKind, finalPayload));
+    if (definition.fields.some((field) => field.type === "file")) delete finalPayload.photo;
+    if (formKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
+    records = await addRecord(existing ? updateRecord(existing, finalPayload) : createRecord(formKind, finalPayload));
     const wasEditing = Boolean(existing);
+    const savedKind = formKind;
     editingId = null;
+    draftDirty = false;
+    editor.close();
     form.reset();
     renderForm();
-    renderRecords();
-    showStatus(wasEditing ? "修改已保存到这台设备。" : selectedKind === "memory" ? "回忆已生成并保存到这台设备。" : "已安全保存到这台设备。", false);
+    if (selectedKind !== "all" && selectedKind !== savedKind) selectModule(savedKind);
+    else renderRecords();
+    showStatus(wasEditing ? "修改已保存，原记录已更新。" : savedKind === "memory" ? "这一段回忆，整理好了。" : "这一刻，已经好好收藏。", false);
   } catch (error) {
     showStatus(error.message || "保存失败。浏览器空间可能已满，请先不要清理或刷新页面。", true);
+  } finally {
+    saving = false;
+    form.inert = false;
+    kindPicker.disabled = Boolean(editingId);
+    form.querySelector("button[type='submit']").disabled = !storageReady;
   }
 });
 
-cancelEditButton.addEventListener("click", () => {
-  editingId = null;
-  form.reset();
-  renderForm();
-  showStatus("已取消编辑。", false);
-});
+cancelEditButton.addEventListener("click", closeEditor);
 
 recordSearch.addEventListener("input", renderRecords);
 
@@ -232,13 +300,23 @@ function selectModule(kind) {
   for (const card of grid.querySelectorAll(".module-card")) {
     card.setAttribute("aria-pressed", String(card.dataset.kind === kind));
   }
-  renderForm();
+  document.querySelectorAll(".bottom-nav [data-browse]").forEach((button) => {
+    if (button.dataset.browse === kind) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  document.querySelector("#records-title").textContent = kind === "all" ? "留住的小事" : moduleNames[kind];
   renderRecords();
   if (storageReady) showStatus("", false);
 }
 
 function renderForm() {
-  const definition = formDefinitions[selectedKind];
+  for (const url of previewUrls) URL.revokeObjectURL(url);
+  previewUrls = [];
+  const existing = editingId ? records.find((record) => record.id === editingId) : null;
+  selectedPhotos = existing ? [...getRecordPhotos(existing.payload)] : [];
+  const definition = formDefinitions[formKind];
+  kindPicker.value = formKind;
+  kindPicker.disabled = Boolean(editingId);
   formTitle.textContent = definition.title;
   formDescription.textContent = definition.description;
   formFields.replaceChildren();
@@ -250,14 +328,34 @@ function renderForm() {
     wrapper.append(field.label, createControl(field));
     if (field.type === "file") {
       const hint = document.createElement("small");
-      hint.textContent = editingId ? "不重新选择将保留原照片；新照片不超过 20 MB。" : "可从相册选择或直接拍照，单张不超过 20 MB。";
+      hint.textContent = "支持一次选多张，也可继续选图追加；单张不超过 20 MB。";
       wrapper.append(hint);
     }
     formFields.append(wrapper);
+    if (field.type === "file") {
+      const preview = document.createElement("div");
+      preview.className = "field-wide photo-selection";
+      formFields.append(preview);
+      const control = wrapper.querySelector("input");
+      control.addEventListener("change", () => {
+        try {
+          const added = [...control.files].map(validatePhotoFile);
+          selectedPhotos.push(...added);
+          if (added.length) draftDirty = true;
+          renderPhotoSelection(preview);
+          if (added.length) showStatus(`已选 ${selectedPhotos.length} 张照片，点击保存后生效。`, false);
+        } catch (error) {
+          showStatus(error.message, true);
+        } finally {
+          control.value = "";
+        }
+      });
+      renderPhotoSelection(preview);
+    }
   }
 
   const submitButton = form.querySelector("button[type='submit']");
-  submitButton.textContent = editingId ? "保存修改" : definition.submitLabel || "保存到本机";
+  submitButton.textContent = editingId ? "保存修改" : definition.submitLabel || "保存这一刻";
   submitButton.disabled = !storageReady;
   cancelEditButton.hidden = !editingId;
   setDefaultDate();
@@ -283,13 +381,50 @@ function createControl(field) {
   } else {
     control = document.createElement("input");
     control.type = field.type;
-    if (field.type === "file") control.accept = "image/*,.heic,.heif";
+    if (field.type === "file") {
+      control.accept = "image/*,.heic,.heif";
+      control.multiple = true;
+    }
   }
 
   control.name = field.name;
   control.required = Boolean(field.required);
   if (field.placeholder) control.placeholder = field.placeholder;
   return control;
+}
+
+function renderPhotoSelection(container) {
+  for (const url of previewUrls) URL.revokeObjectURL(url);
+  previewUrls = [];
+  container.replaceChildren();
+  if (!selectedPhotos.length) return;
+
+  const count = document.createElement("p");
+  count.className = "photo-count";
+  count.textContent = `共 ${selectedPhotos.length} 张照片 · 保存后生效`;
+  const gallery = document.createElement("div");
+  gallery.className = "photo-gallery";
+  selectedPhotos.forEach((photo, index) => {
+    const item = document.createElement("div");
+    const image = document.createElement("img");
+    const url = URL.createObjectURL(photo);
+    previewUrls.push(url);
+    image.src = url;
+    image.alt = `已选照片 ${index + 1}`;
+    image.className = "record-photo";
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "delete-button";
+    remove.textContent = `移除第 ${index + 1} 张`;
+    remove.addEventListener("click", () => {
+      draftDirty = true;
+      selectedPhotos.splice(index, 1);
+      renderPhotoSelection(container);
+    });
+    item.append(image, remove);
+    gallery.append(item);
+  });
+  container.append(count, gallery);
 }
 
 function setDefaultDate() {
@@ -308,22 +443,80 @@ function todayString() {
 }
 
 function renderRecords() {
+  for (const url of recordPhotoUrls) URL.revokeObjectURL(url);
+  recordPhotoUrls = [];
   renderDashboard();
-  const moduleRecords = records.filter((record) => record.kind === selectedKind);
+  const moduleRecords = records.filter((record) => selectedKind === "all" || record.kind === selectedKind);
   const query = recordSearch.value;
-  const visibleRecords = moduleRecords.filter((record) => matchesRecordSearch(record, query));
+  const visibleRecords = moduleRecords.filter((record) => matchesRecordSearch(record, query))
+    .sort((left, right) => getRecordDate(right).localeCompare(getRecordDate(left)) || right.createdAt.localeCompare(left.createdAt));
   recordCount.textContent = query.trim() ? `${visibleRecords.length}/${moduleRecords.length} 条` : `${moduleRecords.length} 条`;
+  recordList.classList.toggle("album-view", albumView);
+  document.querySelector("#view-journal").setAttribute("aria-pressed", String(!albumView));
+  document.querySelector("#view-album").setAttribute("aria-pressed", String(albumView));
+  for (const button of grid.querySelectorAll(".module-card")) {
+    button.querySelector(".module-count").textContent = records.filter((record) => button.dataset.kind === "all" || record.kind === button.dataset.kind).length;
+  }
   recordList.replaceChildren();
 
-  if (visibleRecords.length === 0) {
+  const photoRecords = visibleRecords.filter((record) => getRecordPhotos(record.payload).length);
+  if (visibleRecords.length === 0 || (albumView && photoRecords.length === 0)) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
-    empty.textContent = query.trim() ? "没有找到匹配的记录。" : `还没有${moduleNames[selectedKind]}记录，从左边写下第一条吧。`;
+    const title = document.createElement("h3");
+    title.textContent = query.trim() ? "这个瞬间，还没找到" : albumView ? "等一张值得收藏的照片" : "故事，从一件小事开始";
+    const text = document.createElement("p");
+    text.textContent = query.trim() ? "换个词试试看，或者清空搜索查看全部。" : albumView ? "编辑已有记录或记一笔，把照片也留在故事里。" : "一顿晚饭，一次散步，一句想记住的话。简单写下就好。";
+    const action = document.createElement("button");
+    action.type = "button";
+    action.textContent = query.trim() ? "清空搜索" : "＋ 记下这一刻";
+    action.addEventListener("click", () => {
+      if (query.trim()) { recordSearch.value = ""; renderRecords(); }
+      else openEditor();
+    });
+    empty.append(createIcon(albumView ? "photo" : "book"), title, text, action);
     recordList.append(empty);
     return;
   }
 
-  for (const record of visibleRecords) recordList.append(createRecordCard(record));
+  if (albumView) {
+    let photoCount = 0;
+    for (const record of photoRecords) {
+      getRecordPhotos(record.payload).filter((photo) => photo instanceof Blob).forEach((photo, index) => {
+        const item = document.createElement("article");
+        item.className = "album-item";
+        const caption = document.createElement("div");
+        caption.className = "album-caption";
+        const title = document.createElement("strong");
+        title.textContent = getRecordTitle(record);
+        const date = document.createElement("small");
+        date.textContent = formatDate(getRecordDate(record));
+        caption.append(title, date);
+        item.append(createPhotoTile(record, photo, index), caption);
+        recordList.append(item);
+        photoCount += 1;
+      });
+    }
+    recordCount.textContent = `${photoCount} 张照片`;
+    return;
+  }
+
+  let previousDate;
+  for (const record of visibleRecords) {
+    const date = getRecordDate(record);
+    if (date !== previousDate) {
+      const divider = document.createElement("div");
+      divider.className = "date-divider";
+      const day = document.createElement("strong");
+      day.textContent = String(Number(date.slice(8, 10)));
+      const month = document.createElement("span");
+      month.textContent = `${Number(date.slice(5, 7))}月 · ${date.slice(0, 4)}`;
+      divider.append(day, month);
+      recordList.append(divider);
+      previousDate = date;
+    }
+    recordList.append(createRecordCard(record));
+  }
 }
 
 function renderDashboard() {
@@ -332,6 +525,7 @@ function renderDashboard() {
   daysTogetherNote.textContent = dashboard.startDate ? `从 ${formatDate(dashboard.startDate)} 开始` : "先记录恋爱纪念日或时间轴";
   monthRecords.textContent = dashboard.monthRecords;
   pendingDates.textContent = dashboard.pendingDates;
+  document.querySelector("#photo-total").textContent = records.reduce((sum, record) => sum + getRecordPhotos(record.payload).length, 0);
   nextAnniversary.textContent = dashboard.nextAnniversary
     ? dashboard.nextAnniversary.days === 0 ? "今天" : `${dashboard.nextAnniversary.days} 天`
     : "—";
@@ -393,21 +587,19 @@ function createRecordCard(record) {
   actions.append(editButton, removeButton);
   top.append(heading, actions);
 
-  const photo = record.payload.photo;
-  let photoElement;
-  if (photo instanceof Blob) {
-    photoElement = document.createElement("img");
-    photoElement.className = "record-photo";
-    photoElement.alt = `${title.textContent}的记录照片`;
-    const photoUrl = URL.createObjectURL(photo);
-    photoElement.src = photoUrl;
-    photoElement.addEventListener("load", () => URL.revokeObjectURL(photoUrl), { once: true });
+  const photos = getRecordPhotos(record.payload);
+  const gallery = document.createElement("div");
+  gallery.className = "photo-gallery";
+  gallery.dataset.count = String(photos.length);
+  for (const [index, photo] of photos.entries()) {
+    if (!(photo instanceof Blob)) continue;
+    gallery.append(createPhotoTile(record, photo, index));
   }
 
   const details = document.createElement("dl");
   for (const field of definition.fields) {
     const value = record.payload[field.name];
-    if (!value || field.type === "file" || ["title", "item"].includes(field.name)) continue;
+    if (!value || field.type === "file" || ["title", "item", "date"].includes(field.name)) continue;
     const term = document.createElement("dt");
     term.textContent = field.label;
     const detail = document.createElement("dd");
@@ -420,13 +612,15 @@ function createRecordCard(record) {
   const wasUpdated = record.updatedAt !== record.createdAt;
   savedAt.textContent = `${wasUpdated ? "更新" : "保存"}于 ${new Date(wasUpdated ? record.updatedAt : record.createdAt).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" })}`;
   card.append(top);
-  if (photoElement) card.append(photoElement);
+  if (gallery.childElementCount) card.append(gallery);
   card.append(details, savedAt);
   return card;
 }
 
 function startEditing(record) {
   editingId = record.id;
+  formKind = record.kind;
+  draftDirty = false;
   renderForm();
   for (const field of formDefinitions[record.kind].fields) {
     if (["file", "generated"].includes(field.type)) continue;
@@ -434,13 +628,105 @@ function startEditing(record) {
     if (control) control.value = record.payload[field.name] || "";
   }
   formTitle.textContent = `编辑${moduleNames[record.kind]}`;
-  workspace.scrollIntoView({ behavior: "smooth", block: "start" });
+  showStatus("", false);
+  openDialog(editor);
 }
 
 function getRecordTitle(record) {
   if (["timeline", "date", "anniversary", "memory"].includes(record.kind)) return record.payload.title;
   if (record.kind === "preference") return record.payload.item;
-  return `${formatDate(record.payload.date)} · ${record.payload.mood}`;
+  return `${record.payload.mood || "平常"}的一天`;
+}
+
+function getRecordDate(record) {
+  return record.payload.date || record.payload.plannedDate || record.createdAt.slice(0, 10);
+}
+
+function createIcon(name) {
+  const icon = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  icon.classList.add("icon");
+  icon.setAttribute("aria-hidden", "true");
+  const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+  use.setAttribute("href", `#icon-${name}`);
+  icon.append(use);
+  return icon;
+}
+
+function openDialog(dialog) {
+  if (!dialog.open) dialog.showModal();
+  document.body.classList.add("modal-open");
+}
+
+function openEditor(kind = selectedKind === "all" ? "daily" : selectedKind) {
+  editingId = null;
+  formKind = kind;
+  draftDirty = false;
+  renderForm();
+  showStatus("", false);
+  openDialog(editor);
+}
+
+function closeEditor() {
+  if (saving) return;
+  if (draftDirty && !window.confirm("这一笔还没有保存，确定放弃修改吗？")) return;
+  editor.close();
+  editingId = null;
+  draftDirty = false;
+  selectedPhotos = [];
+  for (const url of previewUrls) URL.revokeObjectURL(url);
+  previewUrls = [];
+}
+
+function createPhotoTile(record, photo, index) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "photo-tile";
+  button.setAttribute("aria-label", `查看${getRecordTitle(record)}的第 ${index + 1} 张照片`);
+  const image = document.createElement("img");
+  image.className = "record-photo";
+  image.alt = `${getRecordTitle(record)}的照片 ${index + 1}`;
+  image.loading = "lazy";
+  const url = URL.createObjectURL(photo);
+  recordPhotoUrls.push(url);
+  image.src = url;
+  image.addEventListener("error", () => {
+    const fallback = document.createElement("span");
+    fallback.className = "photo-fallback";
+    fallback.textContent = "照片已保存 · 点开查看或下载";
+    button.replaceChildren(fallback);
+  }, { once: true });
+  button.append(image);
+  button.addEventListener("click", () => {
+    viewerPhotos = getRecordPhotos(record.payload);
+    viewerIndex = index;
+    document.querySelector("#photo-viewer-title").textContent = getRecordTitle(record);
+    renderViewer();
+    openDialog(photoViewer);
+  });
+  return button;
+}
+
+function changePhoto(step) {
+  const next = viewerIndex + step;
+  if (next < 0 || next >= viewerPhotos.length) return;
+  viewerIndex = next;
+  renderViewer();
+}
+
+function renderViewer() {
+  if (viewerUrl) URL.revokeObjectURL(viewerUrl);
+  const photo = viewerPhotos[viewerIndex];
+  viewerUrl = URL.createObjectURL(photo);
+  viewerImage.hidden = false;
+  viewerError.hidden = true;
+  viewerImage.src = viewerUrl;
+  viewerImage.alt = `第 ${viewerIndex + 1} 张照片`;
+  document.querySelector("#viewer-position").textContent = `${viewerIndex + 1} / ${viewerPhotos.length}`;
+  document.querySelector("#previous-photo").disabled = viewerIndex === 0;
+  document.querySelector("#next-photo").disabled = viewerIndex === viewerPhotos.length - 1;
+  const download = document.querySelector("#download-photo");
+  download.href = viewerUrl;
+  download.download = photo.name || `love-os-photo-${viewerIndex + 1}`;
 }
 
 function formatDate(value) {
@@ -452,6 +738,12 @@ function showStatus(message, isError) {
   statusMessage.textContent = message;
   statusMessage.classList.toggle("is-error", isError);
   workspace.classList.toggle("storage-error", !storageReady);
+  if (!editor.open && message) {
+    toast.textContent = message;
+    toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.hidden = true; }, isError ? 15000 : 5000);
+  }
 }
 
 function showBackupStatus(message, isError) {
@@ -462,4 +754,3 @@ function showBackupStatus(message, isError) {
 if ("serviceWorker" in navigator) {
   navigator.serviceWorker.register("/sw.js").catch(() => {});
 }
-

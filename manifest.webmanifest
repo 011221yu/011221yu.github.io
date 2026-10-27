@@ -4,8 +4,8 @@
   "description": "只属于你的恋爱生活记录助手",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f8f3f1",
-  "theme_color": "#9b5965",
+  "background_color": "#faf8f5",
+  "theme_color": "#faf8f5",
   "icons": [
     {
       "src": "/assets/icon.svg",
@@ -15,4 +15,3 @@
     }
   ]
 }
-

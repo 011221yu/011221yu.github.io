@@ -43,6 +43,10 @@ export function updateRecord(record, payload, updatedAt = new Date().toISOString
   return { ...record, updatedAt, payload: structuredClone(payload) };
 }
 
+export function getRecordPhotos(payload) {
+  return Array.isArray(payload.photos) ? payload.photos : payload.photo ? [payload.photo] : [];
+}
+
 export function matchesRecordSearch(record, query) {
   const normalized = query.trim().toLocaleLowerCase("zh-CN");
   if (!normalized) return true;
@@ -80,7 +84,7 @@ export function createMemorySummary(records, { dateFrom = "", dateTo = "" } = {}
   for (const record of sourceRecords) {
     counts.set(record.kind, (counts.get(record.kind) || 0) + 1);
     if (record.payload.mood) moods.set(record.payload.mood, (moods.get(record.payload.mood) || 0) + 1);
-    if (record.payload.photo) photoCount += 1;
+    if (getRecordPhotos(record.payload).length) photoCount += 1;
     if (record.kind === "date" && record.payload.status === "已完成") completedDates += 1;
   }
 
@@ -139,4 +143,3 @@ export function buildDashboard(records, today = new Date()) {
 function localDateKey(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
-
