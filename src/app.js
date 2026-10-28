@@ -7,7 +7,7 @@ import {
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=8";
+} from "./domain.js?v=9";
 import {
   addRecord,
   createBackup,
@@ -15,7 +15,7 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=8";
+} from "./storage.js?v=9";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -73,12 +73,15 @@ const formDefinitions = Object.freeze({
     ],
   },
   preference: {
-    title: "认真记住她的偏好",
-    description: "记录她明确表达过的喜欢、习惯和在意。",
+    title: "记下一件特别事项",
+    description: "喜欢什么、什么时候不舒服、怎样陪伴她，都值得记住。日期与补充内容可以留空。",
     fields: [
-      { name: "category", label: "分类", type: "select", required: true, options: ["食物", "饮品", "礼物", "地点", "习惯", "在意的事"] },
-      { name: "item", label: "她喜欢或在意什么", type: "text", required: true, placeholder: "例如：喜欢有仪式感的惊喜" },
-      { name: "note", label: "补充细节", type: "textarea", placeholder: "她什么时候说的？有哪些要避免的误解？" },
+      { name: "category", label: "分类", type: "select", required: true, options: ["身体不适", "生理期", "情绪与压力", "饮食禁忌", "食物", "饮品", "礼物", "地点", "习惯", "在意的事", "其他"] },
+      { name: "item", label: "需要记住什么", type: "text", required: true, placeholder: "例如：今天胃不舒服 / 忙的时候想安静一会儿" },
+      { name: "date", label: "发生日期（选填）", type: "date" },
+      { name: "timing", label: "时间或情境（选填）", type: "text", placeholder: "例如：今天晚饭后 / 连续熬夜时 / 生理期第一天" },
+      { name: "note", label: "具体情况与细节", type: "textarea", placeholder: "发生了什么、持续多久，或她提到的喜好和需要留意的事。" },
+      { name: "care", label: "怎么照顾与陪伴", type: "textarea", placeholder: "她希望你做什么？哪些做法有帮助，哪些需要避免？" },
       { name: "photo", label: "参考照片", type: "file" },
     ],
   },
@@ -428,6 +431,7 @@ function renderPhotoSelection(container) {
 }
 
 function setDefaultDate() {
+  if (formKind === "preference") return;
   const dateInput = form.elements.namedItem("date");
   if (!dateInput) return;
   const today = new Date();

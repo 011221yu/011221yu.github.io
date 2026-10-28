@@ -11,7 +11,7 @@
     <title>Love OS · 我们的生活手账</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/src/styles.css?v=8" />
+    <link rel="stylesheet" href="/src/styles.css?v=9" />
   </head>
   <body>
     <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -84,16 +84,16 @@
     </nav>
     <dialog id="editor" class="editor-dialog" aria-labelledby="form-title">
       <div class="form-panel"><div class="editor-top"><span class="eyebrow">留住这一刻</span><button id="close-editor" class="icon-button" type="button" aria-label="关闭编辑"><svg class="icon"><use href="#icon-close"/></svg></button></div>
-        <label class="kind-picker" for="entry-kind">记在哪一本<select id="entry-kind"><option value="daily">每日生活</option><option value="timeline">恋爱时间轴</option><option value="preference">她的偏好</option><option value="date">约会清单</option><option value="anniversary">纪念日</option><option value="memory">回忆总结</option></select></label>
+        <label class="kind-picker" for="entry-kind">记在哪一本<select id="entry-kind"><option value="daily">每日生活</option><option value="timeline">恋爱时间轴</option><option value="preference">特别事项</option><option value="date">约会清单</option><option value="anniversary">纪念日</option><option value="memory">回忆总结</option></select></label>
         <h2 id="form-title"></h2><p id="form-description" class="panel-description"></p>
         <form id="record-form"><div id="form-fields" class="form-fields"></div><div class="form-actions"><button class="primary-button" type="submit">保存这一刻</button><button id="cancel-edit" class="secondary-button" type="button" hidden>取消编辑</button></div></form>
         <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
       </div>
     </dialog>
-    <dialog id="more-menu" class="more-dialog" aria-labelledby="more-title"><div class="editor-top"><h2 id="more-title">还有这些小角落</h2><button class="icon-button" type="button" data-close-more aria-label="关闭更多"><svg class="icon"><use href="#icon-close"/></svg></button></div><button type="button" data-browse="timeline">↗ 恋爱时间轴<span>那些值得纪念的第一次</span></button><button type="button" data-browse="daily">☀ 每日生活<span>三餐、心情与日常</span></button><button type="button" data-browse="preference">♡ 她的偏好<span>认真记住喜欢与在意</span></button><button type="button" data-browse="memory">✦ 回忆总结<span>把一段时光整理成文</span></button><button type="button" data-backup>↺ 备份与恢复<span>好好保存文字与照片</span></button></dialog>
+    <dialog id="more-menu" class="more-dialog" aria-labelledby="more-title"><div class="editor-top"><h2 id="more-title">还有这些小角落</h2><button class="icon-button" type="button" data-close-more aria-label="关闭更多"><svg class="icon"><use href="#icon-close"/></svg></button></div><button type="button" data-browse="timeline">↗ 恋爱时间轴<span>那些值得纪念的第一次</span></button><button type="button" data-browse="daily">☀ 每日生活<span>三餐、心情与日常</span></button><button type="button" data-browse="preference">♡ 特别事项<span>喜好、身体状况与需要留意的事</span></button><button type="button" data-browse="memory">✦ 回忆总结<span>把一段时光整理成文</span></button><button type="button" data-backup>↺ 备份与恢复<span>好好保存文字与照片</span></button></dialog>
     <dialog id="photo-viewer" class="photo-dialog" aria-labelledby="photo-viewer-title"><div class="viewer-top"><p id="photo-viewer-title"></p><button id="close-photo-viewer" type="button" class="icon-button" aria-label="关闭照片"><svg class="icon"><use href="#icon-close"/></svg></button></div><img id="viewer-image" alt="" /><p id="viewer-error" hidden>这张照片无法在当前浏览器预览，可下载后查看。</p><div class="viewer-controls"><button id="previous-photo" type="button" aria-label="上一张照片">←</button><span id="viewer-position"></span><a id="download-photo">保存原图</a><button id="next-photo" type="button" aria-label="下一张照片">→</button></div></dialog>
     <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
     <noscript>Love OS 需要开启 JavaScript 才能保存记录。</noscript>
-    <script type="module" src="/src/app.js?v=8"></script>
+    <script type="module" src="/src/app.js?v=9"></script>
   </body>
 </html>
