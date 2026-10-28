@@ -1,4 +1,4 @@
-import { recordKinds } from "./domain.js?v=9";
+import { recordKinds } from "./domain.js?v=10";
 
 export const LEGACY_STORAGE_KEY = "love-os.records.v1";
 export const MAX_PHOTO_BYTES = 20 * 1024 * 1024;

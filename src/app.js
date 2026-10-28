@@ -4,10 +4,12 @@ import {
   createRecord,
   daysUntilAnniversary,
   getRecordPhotos,
+  getRecordKind,
+  validatePeriodDates,
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=9";
+} from "./domain.js?v=10";
 import {
   addRecord,
   createBackup,
@@ -15,7 +17,7 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=9";
+} from "./storage.js?v=10";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -76,12 +78,26 @@ const formDefinitions = Object.freeze({
     title: "记下一件特别事项",
     description: "喜欢什么、什么时候不舒服、怎样陪伴她，都值得记住。日期与补充内容可以留空。",
     fields: [
-      { name: "category", label: "分类", type: "select", required: true, options: ["身体不适", "生理期", "情绪与压力", "饮食禁忌", "食物", "饮品", "礼物", "地点", "习惯", "在意的事", "其他"] },
+      { name: "category", label: "分类", type: "select", required: true, options: ["身体不适", "情绪与压力", "饮食禁忌", "食物", "饮品", "礼物", "地点", "习惯", "在意的事", "其他"] },
       { name: "item", label: "需要记住什么", type: "text", required: true, placeholder: "例如：今天胃不舒服 / 忙的时候想安静一会儿" },
       { name: "date", label: "发生日期（选填）", type: "date" },
       { name: "timing", label: "时间或情境（选填）", type: "text", placeholder: "例如：今天晚饭后 / 连续熬夜时 / 生理期第一天" },
       { name: "note", label: "具体情况与细节", type: "textarea", placeholder: "发生了什么、持续多久，或她提到的喜好和需要留意的事。" },
       { name: "care", label: "怎么照顾与陪伴", type: "textarea", placeholder: "她希望你做什么？哪些做法有帮助，哪些需要避免？" },
+      { name: "photo", label: "参考照片", type: "file" },
+    ],
+  },
+  period: {
+    title: "记录这一次生理期",
+    description: "每次记一条，结束后再补结束日期。按开始月份整理，也可以补记过去的月份。",
+    fields: [
+      { name: "date", label: "开始日期", type: "date", required: true },
+      { name: "endDate", label: "结束日期（选填）", type: "date" },
+      { name: "item", label: "一句话备注（选填）", type: "text", placeholder: "例如：这次想多休息" },
+      { name: "symptoms", label: "身体感受", type: "textarea", placeholder: "记录她说的不舒服、发生时间和持续情况。" },
+      { name: "note", label: "需要注意的事", type: "textarea", placeholder: "这次要留意什么？她提到哪些习惯或安排需要调整？" },
+      { name: "care", label: "照顾与陪伴", type: "textarea", placeholder: "她希望怎样被照顾？记下有帮助的做法。" },
+      { name: "timing", label: "其他时间与情境（选填）", type: "text", placeholder: "补充具体时间，或保留以前记录的情境" },
       { name: "photo", label: "参考照片", type: "file" },
     ],
   },
@@ -144,7 +160,7 @@ try {
   showStatus(error.message, true);
 }
 
-const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", date: "pin", anniversary: "calendar", memory: "spark" };
+const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", date: "pin", anniversary: "calendar", memory: "spark" };
 for (const module of [{ kind: "all", title: "全部手账" }, ...modules]) {
   const card = document.createElement("button");
   card.type = "button";
@@ -239,7 +255,8 @@ form.addEventListener("submit", async (event) => {
     const finalPayload = existing ? { ...existing.payload, ...payload } : payload;
     if (definition.fields.some((field) => field.type === "file")) delete finalPayload.photo;
     if (formKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
-    records = await addRecord(existing ? updateRecord(existing, finalPayload) : createRecord(formKind, finalPayload));
+    if (formKind === "period") validatePeriodDates(finalPayload);
+    records = await addRecord(existing ? updateRecord({ ...existing, kind: formKind }, finalPayload) : createRecord(formKind, finalPayload));
     const wasEditing = Boolean(existing);
     const savedKind = formKind;
     editingId = null;
@@ -450,7 +467,7 @@ function renderRecords() {
   for (const url of recordPhotoUrls) URL.revokeObjectURL(url);
   recordPhotoUrls = [];
   renderDashboard();
-  const moduleRecords = records.filter((record) => selectedKind === "all" || record.kind === selectedKind);
+  const moduleRecords = records.filter((record) => selectedKind === "all" || getRecordKind(record) === selectedKind);
   const query = recordSearch.value;
   const visibleRecords = moduleRecords.filter((record) => matchesRecordSearch(record, query))
     .sort((left, right) => getRecordDate(right).localeCompare(getRecordDate(left)) || right.createdAt.localeCompare(left.createdAt));
@@ -459,18 +476,24 @@ function renderRecords() {
   document.querySelector("#view-journal").setAttribute("aria-pressed", String(!albumView));
   document.querySelector("#view-album").setAttribute("aria-pressed", String(albumView));
   for (const button of grid.querySelectorAll(".module-card")) {
-    button.querySelector(".module-count").textContent = records.filter((record) => button.dataset.kind === "all" || record.kind === button.dataset.kind).length;
+    button.querySelector(".module-count").textContent = records.filter((record) => button.dataset.kind === "all" || getRecordKind(record) === button.dataset.kind).length;
   }
   recordList.replaceChildren();
+  if (selectedKind === "period" && !albumView) {
+    const hint = document.createElement("p");
+    hint.className = "panel-description";
+    hint.textContent = "按开始月份查看，每次记录一条；结束日期可以稍后补充。旧生理期事项也收在这里，请编辑核对开始日期。";
+    recordList.append(hint);
+  }
 
   const photoRecords = visibleRecords.filter((record) => getRecordPhotos(record.payload).length);
   if (visibleRecords.length === 0 || (albumView && photoRecords.length === 0)) {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     const title = document.createElement("h3");
-    title.textContent = query.trim() ? "这个瞬间，还没找到" : albumView ? "等一张值得收藏的照片" : "故事，从一件小事开始";
+    title.textContent = query.trim() ? "这个瞬间，还没找到" : albumView ? "等一张值得收藏的照片" : selectedKind === "period" ? "从这一次，开始记下" : "故事，从一件小事开始";
     const text = document.createElement("p");
-    text.textContent = query.trim() ? "换个词试试看，或者清空搜索查看全部。" : albumView ? "编辑已有记录或记一笔，把照片也留在故事里。" : "一顿晚饭，一次散步，一句想记住的话。简单写下就好。";
+    text.textContent = query.trim() ? "换个词试试看，或者清空搜索查看全部。" : albumView ? "编辑已有记录或记一笔，把照片也留在故事里。" : selectedKind === "period" ? "记下开始日期、身体感受和注意事项，结束后再来补一笔。" : "一顿晚饭，一次散步，一句想记住的话。简单写下就好。";
     const action = document.createElement("button");
     action.type = "button";
     action.textContent = query.trim() ? "清空搜索" : "＋ 记下这一刻";
@@ -508,16 +531,17 @@ function renderRecords() {
   let previousDate;
   for (const record of visibleRecords) {
     const date = getRecordDate(record);
-    if (date !== previousDate) {
+    const group = selectedKind === "period" ? date.slice(0, 7) : date;
+    if (group !== previousDate) {
       const divider = document.createElement("div");
       divider.className = "date-divider";
       const day = document.createElement("strong");
-      day.textContent = String(Number(date.slice(8, 10)));
+      day.textContent = selectedKind === "period" ? `${Number(date.slice(5, 7))}月` : String(Number(date.slice(8, 10)));
       const month = document.createElement("span");
-      month.textContent = `${Number(date.slice(5, 7))}月 · ${date.slice(0, 4)}`;
+      month.textContent = selectedKind === "period" ? `${date.slice(0, 4)}年` : `${Number(date.slice(5, 7))}月 · ${date.slice(0, 4)}`;
       divider.append(day, month);
       recordList.append(divider);
-      previousDate = date;
+      previousDate = group;
     }
     recordList.append(createRecordCard(record));
   }
@@ -537,7 +561,8 @@ function renderDashboard() {
 }
 
 function createRecordCard(record) {
-  const definition = formDefinitions[record.kind];
+  const recordKind = getRecordKind(record);
+  const definition = formDefinitions[recordKind];
   const card = document.createElement("article");
   card.className = "record-card";
 
@@ -546,10 +571,18 @@ function createRecordCard(record) {
   const heading = document.createElement("div");
   const kind = document.createElement("span");
   kind.className = "record-kind";
-  kind.textContent = moduleNames[record.kind];
+  kind.textContent = moduleNames[recordKind];
   const title = document.createElement("h3");
   title.textContent = getRecordTitle(record);
   heading.append(kind, title);
+  if (recordKind === "period") {
+    const dates = document.createElement("p");
+    dates.className = "panel-description";
+    dates.textContent = record.kind === "preference"
+      ? `旧生理期事项 · ${record.payload.date ? "原记录日期：" + formatDate(record.payload.date) : "尚未填写日期"}（请编辑核对开始日）`
+      : `${formatDate(record.payload.date)} 开始 · ${record.payload.endDate ? formatDate(record.payload.endDate) + " 结束" : "结束日期待补充"}`;
+    heading.append(dates);
+  }
   if (record.kind === "anniversary") {
     const days = daysUntilAnniversary(record.payload.date);
     if (days !== null) {
@@ -603,7 +636,7 @@ function createRecordCard(record) {
   const details = document.createElement("dl");
   for (const field of definition.fields) {
     const value = record.payload[field.name];
-    if (!value || field.type === "file" || ["title", "item", "date"].includes(field.name)) continue;
+    if (!value || field.type === "file" || ["title", "item", "date"].includes(field.name) || (recordKind === "period" && field.name === "endDate")) continue;
     const term = document.createElement("dt");
     term.textContent = field.label;
     const detail = document.createElement("dd");
@@ -623,20 +656,24 @@ function createRecordCard(record) {
 
 function startEditing(record) {
   editingId = record.id;
-  formKind = record.kind;
+  formKind = getRecordKind(record);
   draftDirty = false;
   renderForm();
-  for (const field of formDefinitions[record.kind].fields) {
+  for (const field of formDefinitions[formKind].fields) {
     if (["file", "generated"].includes(field.type)) continue;
     const control = form.elements.namedItem(field.name);
     if (control) control.value = record.payload[field.name] || "";
   }
-  formTitle.textContent = `编辑${moduleNames[record.kind]}`;
+  formTitle.textContent = `编辑${moduleNames[formKind]}`;
+  if (record.kind === "preference" && formKind === "period") {
+    formDescription.textContent = "这是原来的生理期事项，文字和照片都已保留。请核对开始日期，保存后作为独立生理期记录。";
+  }
   showStatus("", false);
   openDialog(editor);
 }
 
 function getRecordTitle(record) {
+  if (getRecordKind(record) === "period") return record.payload.item || "这一次生理期";
   if (["timeline", "date", "anniversary", "memory"].includes(record.kind)) return record.payload.title;
   if (record.kind === "preference") return record.payload.item;
   return `${record.payload.mood || "平常"}的一天`;
