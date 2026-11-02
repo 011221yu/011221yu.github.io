@@ -8,5 +8,6 @@
  function activate(p){for(const u of urls)URL.revokeObjectURL(u);urls=[];const images={};for(const [path,data]of Object.entries(p.images)){const raw=atob(data.split(',')[1]),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)),u=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));urls.push(u);images[path]=u}return {...p,images}}
  const originalActivate=activate;
  function activateWithMeta(p){const result=originalActivate(p);root.GongkaoLocalMaterials.meta={readings:p.readings||[],audit:p.audit||[],revision:p.revision||''};setTimeout(()=>{if(typeof renderToday==='function')renderToday()},0);return result}
- root.GongkaoLocalMaterials={read,readPackage:read,writePackage,importFile,activate:activateWithMeta,validate};
+ async function keys(){const d=await db();return new Promise((resolve,reject)=>{const r=d.transaction('packages').objectStore('packages').getAllKeys();r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)})}
+ root.GongkaoLocalMaterials={read,readPackage:read,writePackage,importFile,activate:activateWithMeta,validate,keys};
 })(globalThis);

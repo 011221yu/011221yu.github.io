@@ -44,7 +44,7 @@
     <button class="nav-btn" data-page="review"><span>🔁</span><span>周复盘</span></button>
     <button class="nav-btn" data-page="stats"><span>📈</span><span>学习统计</span></button>
     <button class="nav-btn" data-page="data"><span>🛟</span><span>数据备份</span></button>
-    <div class="side-foot"><span id="sideCountdown">距考试 — 天</span><br>当前浏览器保存 · 可手动备份</div>
+    <div class="side-foot"><span id="sideCountdown">距考试 — 天</span><br>本机保留 · 可选私人同步</div>
   </aside>
   <main class="content">
     <header class="top"><div><button class="btn menu" id="menu">☰</button><h1 id="pageTitle">今日总览</h1><p id="pageSub">按真实可用时长排任务，未完成自动顺延。</p></div><div class="top-actions"><span class="pill">● 本地自动保存</span><button class="btn primary" id="addQuick">＋ 添加任务</button></div></header>
@@ -352,7 +352,7 @@ async function importBackup(file){
 }
 function renderData(){
   const completed=Object.values(state.done).filter(Boolean).length;
-  $('#data').innerHTML=`<div class="grid two"><article class="card"><div class="eyebrow">本地数据保护</div><h2 style="margin:8px 0">🛟 导出学习档案</h2><p style="color:var(--muted);line-height:1.8">包含原有记录、动态计划、粉笔学习数据、笔记图片、正确率、错题、选岗条件和周复盘。图片会增大备份文件，建议每周及更换设备前导出一次。</p><div class="formula">数据版本：${GongkaoData.SCHEMA_VERSION}<br>已完成任务：${completed} 项<br>学习记录：${state.studyLogs.length} 条<br>笔记记录：${state.studyNotes.length} 条<br>错题记录：${state.mistakes.length} 条</div><button class="btn primary" id="exportData">下载备份文件</button></article><article class="card"><div class="eyebrow">跨设备恢复</div><h2 style="margin:8px 0">📥 导入学习档案</h2><p style="color:var(--muted);line-height:1.8">选择此前导出的 JSON 文件。导入前会自动下载当前档案，避免误操作后无法恢复。</p><label class="btn" style="display:inline-block;cursor:pointer">选择备份文件<input id="importData" type="file" accept="application/json,.json" hidden></label><p style="color:var(--muted);font-size:13px;line-height:1.7">不会上传到第三方；数据仍只保存在当前浏览器。</p></article></div>`;
+  $('#data').innerHTML=`<div class="grid two"><article class="card"><div class="eyebrow">本地数据保护</div><h2 style="margin:8px 0">🛟 导出学习档案</h2><p style="color:var(--muted);line-height:1.8">包含原有记录、动态计划、粉笔学习数据、笔记图片、正确率、错题、选岗条件和周复盘。图片会增大备份文件，建议每周及更换设备前导出一次。</p><div class="formula">数据版本：${GongkaoData.SCHEMA_VERSION}<br>已完成任务：${completed} 项<br>学习记录：${state.studyLogs.length} 条<br>笔记记录：${state.studyNotes.length} 条<br>错题记录：${state.mistakes.length} 条</div><button class="btn primary" id="exportData">下载备份文件</button></article><article class="card"><div class="eyebrow">跨设备恢复</div><h2 style="margin:8px 0">📥 导入学习档案</h2><p style="color:var(--muted);line-height:1.8">选择此前导出的 JSON 文件。导入前会自动下载当前档案，避免误操作后无法恢复。</p><label class="btn" style="display:inline-block;cursor:pointer">选择备份文件<input id="importData" type="file" accept="application/json,.json" hidden></label><p style="color:var(--muted);font-size:13px;line-height:1.7">手动备份文件保存在本机；启用私人同步后，学习档案也会保存到你的私人云空间。</p></article></div>`;
   $('#exportData').onclick=()=>{downloadBackup();save('学习档案已导出')};
   $('#importData').onchange=async e=>{const file=e.target.files[0];if(!file)return;try{await importBackup(file)}catch(error){alert(error.message)}finally{e.target.value=''}};
 }
@@ -376,5 +376,9 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(
 <script src="national-curriculum.js"></script>
 <script src="national-engine.js"></script>
 <script src="national-ui.js"></script>
+<script src="vendor/cloudbase.min.js"></script>
+<script src="cloud-config.js"></script>
+<script src="sync-engine.js"></script>
+<script src="cloud-sync.js"></script>
 </body>
 </html>
