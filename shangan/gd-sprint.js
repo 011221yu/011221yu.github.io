@@ -5,9 +5,11 @@ GongkaoPlanner.buildDay=function(args){
  const base=gdBaseBuild({...args,carried:[],hours:0}),tasks=[],available=Math.round(args.hours*60);let used=0;
  const add=(key,title,minutes,details,module='综合',source='粉笔')=>{if(used+minutes>available)return;tasks.push({id:`gd:${args.date}:${key}`,date:args.date,kind:key,title,minutes,details,module,source});used+=minutes};
  const special={'2026-11-02':'广东行测摸底','2026-11-07':'广东行测模考','2026-11-14':'广东行测模考','2026-11-18':'国考行测练手','2026-11-21':'广东双科模拟','2026-11-25':'国考双科模拟','2026-12-02':'广东双科全真模拟'};
- const day=new Date(args.date+'T12:00:00').getDay(),stage=args.date<='2026-11-11'?'重点补基':args.date<='2026-11-22'?'限时强化':args.date<='2026-11-29'?'国考实战周':'广东考前收口';
+ const nationalBefore=args.date<'2026-11-29';
+ const day=new Date(args.date+'T12:00:00').getDay(),mixedPolitics=day===2||day===5,stage=args.date<='2026-11-11'?'重点补基':args.date<='2026-11-22'?'限时强化':args.date<='2026-11-29'?'国考实战周':'广东考前收口';
  if(!['2026-11-29','2026-12-06'].includes(args.date)){
   add('idioms','言语成语｜新学＋到期回忆',40,'按省考时间倒排首轮；新学与复习分开统计，打开“言语·成语积累”完成。','言语理解','工作台');
+  if(nationalBefore)add('national','全国时政｜主题精读＋自测',mixedPolitics?25:35,'按国考日期倒排，完成一个主题的要点、易混辨析与4道自测；到期回忆优先。国考前最后两天收口，不再开新长专题。','政治理论常识','工作台');
   add('knowledge','广东省情时政｜新学＋回忆',25,'按考试日期与休息日倒排知识卡；打开“广东资料与刷题→省情时政背诵”。','广东省情时政','工作台');
  }
  if(args.date==='2026-11-29'||args.date==='2026-12-06'){
@@ -17,10 +19,10 @@ GongkaoPlanner.buildDay=function(args){
   add('paper-review','套卷复盘',60,'分模块记录正确率、用时和取舍，选出三个最需改进的动作。','复盘');
  }else{
   const light=args.date==='2026-11-28'||args.date>='2026-12-04';
-  add('politics','政治理论／常识刷题',30,'15–20题，订正后闭卷回忆；不排整套理论课。','政治理论常识');
+  if(!nationalBefore||mixedPolitics)add('politics',nationalBefore?'粉笔政治／常识混合诊断':'政治理论／常识刷题',nationalBefore?10:30,nationalBefore?'做一小组马哲、法律等混合诊断，补全国时政之外的薄弱点；和当天25分钟全国专题合计35分钟。':'15–20题，订正后闭卷回忆；不排整套理论课。','政治理论常识');
   add('essay','广东综合管理申论精练',light?40:day===3?110:70,day===3?'完成作文或作文提纲，结合材料论证；每周安排一次长练。':'一道小题独立作答，对照材料找遗漏并重写；不只读解析。','申论');
   add('material','申论素材书精读',15,'读一个短专题，摘录案例或规范表达，再用自己的话改写。','申论','素材书');
-  add('review','错题重做与学习登记',30,'先重做昨天错题；登记正确率、耗时和错因。','复盘','工作台');
+  add('review','错题重做与学习登记',nationalBefore?25:30,'先重做昨天错题；登记正确率、耗时和错因。','复盘','工作台');
   add('gd','广东省情／时政在线练习',40,'省情每次25题，分20单元完成；时政轮换专题。完成后进入错题汇总。','广东省情时政','广东资料');
   if(!light){
    add('math-data','数资联学｜资料分析＋数量关系听课',args.date<='2026-11-11'?100:80,'数资两部分都听：分别选一个重点方法，按1.5–2倍速分段学习，每部分听完立即做对应练习。资料侧重计算与读数，数量侧重方程、工程、行程、经济利润等基础。两部分分别登记学习记录。','资料分析＋数量关系');
@@ -31,11 +33,11 @@ GongkaoPlanner.buildDay=function(args){
   }
  }
  const seen=new Set(tasks.map(t=>t.id)),backlog=[];
- for(const t of args.carried||[])if(t.id?.startsWith('gd:')&&!seen.has(t.id)){seen.add(t.id);if(['material','politics','idioms','knowledge'].includes(t.kind))continue;if(used+t.minutes<=available&&t.minutes<=40){tasks.push({...t,title:t.title.startsWith('顺延｜')?t.title:'顺延｜'+t.title});used+=t.minutes}else backlog.push(t)}
- return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261102-numdata',nextModule:'数资（资料分析＋数量关系）／判断／科学推理'};
+ for(const t of args.carried||[])if(t.id?.startsWith('gd:')&&!seen.has(t.id)){seen.add(t.id);if(['material','politics','idioms','knowledge','national'].includes(t.kind))continue;if(used+t.minutes<=available&&t.minutes<=40){tasks.push({...t,title:t.title.startsWith('顺延｜')?t.title:'顺延｜'+t.title});used+=t.minutes}else backlog.push(t)}
+ return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261102-national',nextModule:'数资（资料分析＋数量关系）／判断／科学推理'};
 };
 const gdOldEnsure=ensureDayPlan;
-ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261102-numdata')force=true;return gdOldEnsure(date,force)};
+ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261102-national')force=true;return gdOldEnsure(date,force)};
 const gdOldPrimary=primaryTarget;
 primaryTarget=function(){return state.examTargets.find(x=>x.id==='guangdong'&&x.date>=dateKey(today0))||gdOldPrimary()};
 if(!state.notes.gdOfficialDates20261102){state.examTargets.forEach(t=>{if(t.id==='guangdong'){t.date='2026-12-06';t.source='official'}if(t.id==='guokao'){t.date='2026-11-29';t.source='official'}});state.notes.gdOfficialDates20261102=true;persist()}
