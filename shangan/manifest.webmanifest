@@ -1,0 +1,18 @@
+{
+  "name": "上岸工作台",
+  "short_name": "上岸",
+  "id": "./",
+  "description": "国考、广东省考与事业编的动态规划、学习记录、数据复盘和智能选岗工作台",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fbf8f1",
+  "theme_color": "#dff2e7",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
