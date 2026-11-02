@@ -6,6 +6,10 @@ GongkaoPlanner.buildDay=function(args){
  const add=(key,title,minutes,details,module='综合',source='粉笔')=>{if(used+minutes>available)return;tasks.push({id:`gd:${args.date}:${key}`,date:args.date,kind:key,title,minutes,details,module,source});used+=minutes};
  const special={'2026-11-02':'广东行测摸底','2026-11-07':'广东行测模考','2026-11-14':'广东行测模考','2026-11-18':'国考行测练手','2026-11-21':'广东双科模拟','2026-11-25':'国考双科模拟','2026-12-02':'广东双科全真模拟'};
  const day=new Date(args.date+'T12:00:00').getDay(),stage=args.date<='2026-11-11'?'重点补基':args.date<='2026-11-22'?'限时强化':args.date<='2026-11-29'?'国考实战周':'广东考前收口';
+ if(!['2026-11-29','2026-12-06'].includes(args.date)){
+  add('idioms','言语成语｜新学＋到期回忆',40,'按省考时间倒排首轮；新学与复习分开统计，打开“言语·成语积累”完成。','言语理解','工作台');
+  add('knowledge','广东省情时政｜新学＋回忆',25,'按考试日期与休息日倒排知识卡；打开“广东资料与刷题→省情时政背诵”。','广东省情时政','工作台');
+ }
  if(args.date==='2026-11-29'||args.date==='2026-12-06'){
   add('exam',args.date==='2026-11-29'?'国考实战练手':'广东综合管理笔试',Math.min(available,240),'携带身份证、准考证及考试用品；考试时段按准考证执行。');
  }else if(special[args.date]&&available>=300){
@@ -15,28 +19,28 @@ GongkaoPlanner.buildDay=function(args){
   const light=args.date==='2026-11-28'||args.date>='2026-12-04';
   add('politics','政治理论／常识刷题',30,'15–20题，订正后闭卷回忆；不排整套理论课。','政治理论常识');
   add('essay','广东综合管理申论精练',light?40:day===3?110:70,day===3?'完成作文或作文提纲，结合材料论证；每周安排一次长练。':'一道小题独立作答，对照材料找遗漏并重写；不只读解析。','申论');
-  add('material','申论素材书／政府报告',20,'读一个专题，提炼案例和规范表达，再用自己的话改写。','申论','素材书');
+  add('material','申论素材书精读',15,'读一个短专题，摘录案例或规范表达，再用自己的话改写。','申论','素材书');
   add('review','错题重做与学习登记',30,'先重做昨天错题；登记正确率、耗时和错因。','复盘','工作台');
   add('gd','广东省情／时政在线练习',40,'省情每次25题，分20单元完成；时政轮换专题。完成后进入错题汇总。','广东省情时政','广东资料');
   if(!light){
-   const module=day%2?'资料分析':'判断推理';
-   add('core',`${module}｜方法＋对应练习`,args.date<='2026-11-11'?100:70,'只听不会的重点方法，倍速后听课不超过本块一半，听完立刻练习。',module);
-   add('science','科学推理基础／专项',50,'按错题补力学、电学等基础，一次一小块。','科学推理');
-   add('alternate',day%2?'数量基础题专项':'言语限时练习',50,day%2?'方程、工程、行程、经济利润优先，8–12题并订正。':'20题左右，记录审题和词义问题。',day%2?'数量关系':'言语理解');
-   add('weak','判断／资料薄弱项补练',50,'从最近低正确率题型中挑一组，限时做完并复盘。',GongkaoPlanner.weakestModule(args.logs)?.module||'判断推理');
+   add('math-data','数资联学｜资料分析＋数量关系听课',args.date<='2026-11-11'?100:80,'数资两部分都听：分别选一个重点方法，按1.5–2倍速分段学习，每部分听完立即做对应练习。资料侧重计算与读数，数量侧重方程、工程、行程、经济利润等基础。两部分分别登记学习记录。','资料分析＋数量关系');
+   add('judgement','判断推理｜听课＋对应练习',args.date<='2026-11-11'?55:45,'按图推、逻辑等薄弱题型听重点方法，听完立即练习。','判断推理');
+   add('science','科学推理｜听课＋专项练习',35,'力学、电学等基础分小段听课，再完成对应专项。','科学推理');
+   add('verbal','言语限时练习',30,'词语辨析配合成语积累；片段阅读限时完成并登记错因。','言语理解');
+   add('weak','判断／数资薄弱项补练',25,'从近期低正确率题型中挑一小组，限时完成后复盘。',GongkaoPlanner.weakestModule(args.logs)?.module||'判断推理');
   }
  }
  const seen=new Set(tasks.map(t=>t.id)),backlog=[];
- for(const t of args.carried||[])if(t.id?.startsWith('gd:')&&!seen.has(t.id)){seen.add(t.id);if(t.kind==='material'||t.kind==='politics')continue;if(used+t.minutes<=available&&t.minutes<=40){tasks.push({...t,title:t.title.startsWith('顺延｜')?t.title:'顺延｜'+t.title});used+=t.minutes}else backlog.push(t)}
- return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261102',nextModule:'判断／资料／科学推理（选择补课）'};
+ for(const t of args.carried||[])if(t.id?.startsWith('gd:')&&!seen.has(t.id)){seen.add(t.id);if(['material','politics','idioms','knowledge'].includes(t.kind))continue;if(used+t.minutes<=available&&t.minutes<=40){tasks.push({...t,title:t.title.startsWith('顺延｜')?t.title:'顺延｜'+t.title});used+=t.minutes}else backlog.push(t)}
+ return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261102-numdata',nextModule:'数资（资料分析＋数量关系）／判断／科学推理'};
 };
 const gdOldEnsure=ensureDayPlan;
-ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261102')force=true;return gdOldEnsure(date,force)};
+ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261102-numdata')force=true;return gdOldEnsure(date,force)};
 const gdOldPrimary=primaryTarget;
 primaryTarget=function(){return state.examTargets.find(x=>x.id==='guangdong'&&x.date>=dateKey(today0))||gdOldPrimary()};
 if(!state.notes.gdOfficialDates20261102){state.examTargets.forEach(t=>{if(t.id==='guangdong'){t.date='2026-12-06';t.source='official'}if(t.id==='guokao'){t.date='2026-11-29';t.source='official'}});state.notes.gdOfficialDates20261102=true;persist()}
 const gdOldToday=renderToday;
-renderToday=function(){gdOldToday();const plan=ensureDayPlan();if(plan.mode!=='gd-sprint')return;$('#today .hero h2').textContent='广东综合管理冲刺 · '+plan.stage;$('#today').insertAdjacentHTML('afterbegin',`<article class="card" style="margin-bottom:18px"><h2>广东主攻 · 国考练手</h2><p>省考 12月6日｜国考 11月29日｜听课集中判断、资料、科推；政治和常识刷题订正。</p><button class="btn primary" id="gdGo">打开广东资料与刷题</button><p style="color:var(--muted)">09:50开始；每50分钟离屏休息10分钟，12:10–13:30午饭午休、17:30–18:30晚饭。模考按正式考试时段。</p></article>`);$('#gdGo').onclick=()=>openPage('gd')};
+renderToday=function(){gdOldToday();const plan=ensureDayPlan();if(plan.mode!=='gd-sprint')return;$('#today .hero h2').textContent='广东综合管理冲刺 · '+plan.stage;$('#today').insertAdjacentHTML('afterbegin',`<article class="card" style="margin-bottom:18px"><h2>广东主攻 · 国考练手</h2><p>省考 12月6日｜国考 11月29日｜听课集中判断、数资（资料分析＋数量关系）、科推；政治和常识刷题订正。</p><button class="btn primary" id="gdGo">打开广东资料与刷题</button><p style="color:var(--muted)">09:50开始；每50分钟离屏休息10分钟，12:10–13:30午饭午休、17:30–18:30晚饭。模考按正式考试时段。</p></article>`);$('#gdGo').onclick=()=>openPage('gd')};
 const gdButton=document.createElement('button');gdButton.className='nav-btn';gdButton.dataset.page='gd';gdButton.textContent='📚 广东资料与刷题';document.querySelector('[data-page="mistakes"]').before(gdButton);
 const gdSection=document.createElement('section');gdSection.id='gd';gdSection.className='page';document.querySelector('main').append(gdSection);titles.gd=['广东资料与刷题','省情、时政、政府报告 · 在线学习与错题汇总'];gdButton.onclick=()=>openPage('gd');
 let gdDocs=[],gdQuestions=[],gdDoc='doc1',gdMode='all',gdIndex=0,gdSelected=[],gdFeedback=false,gdLockedId='';

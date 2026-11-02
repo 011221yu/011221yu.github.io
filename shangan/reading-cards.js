@@ -175,9 +175,19 @@
  const byId=new Map(cards.map(c=>[c.id,c]));
  const stamp=date=>Date.parse(date+'T00:00:00Z');
  const offsets=[1,3,7];
- function plan({date,days={},done={},reviews={},rest=false}){
+ function pace({date,examDate='2026-12-06',remaining,restDates=[],round=1}){
+  const at=stamp(date),exam=stamp(examDate),add=(d,n)=>new Date(stamp(d)+n*86400000).toISOString().slice(0,10);
+  let deadline=add(examDate,-10);
+  if(deadline<date)deadline=add(examDate,-3);
+  if(deadline<date)deadline=add(examDate,-1);
+  if(exam<=at)deadline=add(date,13);
+  const rests=new Set(restDates);let studyDays=0;
+  for(let d=date;d<=deadline;d=add(d,1))if(!rests.has(d))studyDays++;
+  return {deadline,studyDays,remaining,quota:remaining?Math.ceil(remaining/Math.max(1,studyDays)/round)*round:0};
+ }
+ function plan({date,days={},done={},reviews={},rest=false,examDate='2026-12-06',restDates=[]}){
   if(rest)return {newIds:[],reviewKeys:[],rest:true};
-  if(days[date]?.version===1)return {...days[date],newIds:days[date].newIds.filter(id=>byId.has(id)),reviewKeys:days[date].reviewKeys.filter(k=>byId.has(k.split(':')[0]))};
+  if(days[date]?.version===2)return {...days[date],newIds:days[date].newIds.filter(id=>byId.has(id)),reviewKeys:days[date].reviewKeys.filter(k=>byId.has(k.split(':')[0]))};
   const first=new Map();
   for(const day of Object.keys(done).filter(d=>d<date).sort())for(const id of done[day]||[])if(byId.has(id)&&!first.has(id))first.set(id,day);
   const due=[];
@@ -192,8 +202,11 @@
   due.sort((a,b)=>a.at-b.at||a.key.localeCompare(b.key));
   const carried=Object.keys(days).filter(d=>d<date).sort().flatMap(d=>days[d].newIds||[]);
   const available=[...new Set([...carried,...cards.map(c=>c.id)])].filter(id=>byId.has(id)&&!first.has(id));
-  const newLimit=due.length>=6?0:due.length>=3?1:2;
-  return {version:1,newIds:available.slice(0,newLimit),reviewKeys:due.slice(0,newLimit===0?6:3).map(d=>d.key)};
+  const learnedToday=(done[date]||[]).filter(id=>byId.has(id));
+  const schedule=pace({date,examDate,restDates,remaining:available.length});
+  const pinned=days[date]?.newIds?.filter(id=>byId.has(id))||[];
+  const newIds=[...new Set([...learnedToday,...pinned,...available])].slice(0,Math.max(schedule.quota,learnedToday.length,pinned.length));
+  return {version:2,...schedule,newIds,reviewKeys:due.slice(0,8).map(d=>d.key)};
  }
- root.GongkaoReading={cards,byId,plan,version:'curated-20261102',sourcePolicy:'仅正文知识卡进入每日任务；目录、封面及练习题页不参与排课。'};
+ root.GongkaoReading={cards,byId,plan,pace,version:'curated-20261102',sourcePolicy:'仅正文知识卡进入每日任务；目录、封面及练习题页不参与排课。'};
 })(typeof globalThis!=='undefined'?globalThis:this);

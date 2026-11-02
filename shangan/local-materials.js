@@ -1,12 +1,12 @@
 (function(root){
  'use strict';let dbPromise,urls=[];
  function db(){return dbPromise||(dbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open('shangan-private-materials',1);r.onupgradeneeded=()=>r.result.createObjectStore('packages');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)}))}
- async function read(){const d=await db();return new Promise((resolve,reject)=>{const r=d.transaction('packages').objectStore('packages').get('gd');r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
+ async function read(key='gd'){const d=await db();return new Promise((resolve,reject)=>{const r=d.transaction('packages').objectStore('packages').get(key);r.onsuccess=()=>resolve(r.result||null);r.onerror=()=>reject(r.error)})}
+ async function writePackage(key,p){const d=await db();await new Promise((resolve,reject)=>{const t=d.transaction('packages','readwrite');t.objectStore('packages').put(p,key);t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error||new Error('本机空间不足，资料未保存'))});return p}
  function validate(p){if(p?.format!=='shangan-materials-v1'||!Array.isArray(p.docs)||!Array.isArray(p.questions)||!p.images||typeof p.images!=='object')throw new Error('不是有效的工作台题库包');const docs=new Set();for(const d of p.docs){if(!/^doc\d+$/.test(d.id)||!Number.isInteger(d.pages)||d.pages<1)throw new Error('资料目录不完整');docs.add(d.id)}for(const [path,value]of Object.entries(p.images)){if(!/^gd-materials\/doc\d+\/(?:\d+(?:-q)?|pair-\d+-\d+-[qa])\.jpg$/.test(path)||!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(value))throw new Error('题图格式错误')}for(const q of p.questions){if(!docs.has(q.doc)||!Array.isArray(q.options)||!q.stem||!p.images[q.questionImage]||!p.images[`gd-materials/${q.doc}/${q.answerPage}.jpg`])throw new Error('题目或原页缺失')}return p}
  async function importFile(file){if(file.size>200*1024*1024)throw new Error('题库包超过200MB');const stream=/\.gz$/i.test(file.name)?file.stream().pipeThrough(new DecompressionStream('gzip')):file.stream();const p=validate(JSON.parse(await new Response(stream).text()));const d=await db();await new Promise((resolve,reject)=>{const t=d.transaction('packages','readwrite');t.objectStore('packages').put(p,'gd');t.oncomplete=resolve;t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error||new Error('本机空间不足，导入未保存'))});return p}
  function activate(p){for(const u of urls)URL.revokeObjectURL(u);urls=[];const images={};for(const [path,data]of Object.entries(p.images)){const raw=atob(data.split(',')[1]),bytes=Uint8Array.from(raw,c=>c.charCodeAt(0)),u=URL.createObjectURL(new Blob([bytes],{type:'image/jpeg'}));urls.push(u);images[path]=u}return {...p,images}}
  const originalActivate=activate;
  function activateWithMeta(p){const result=originalActivate(p);root.GongkaoLocalMaterials.meta={readings:p.readings||[],audit:p.audit||[],revision:p.revision||''};setTimeout(()=>{if(typeof renderToday==='function')renderToday()},0);return result}
- root.GongkaoLocalMaterials={read,importFile,activate:activateWithMeta,validate};
+ root.GongkaoLocalMaterials={read,readPackage:read,writePackage,importFile,activate:activateWithMeta,validate};
 })(globalThis);
-
