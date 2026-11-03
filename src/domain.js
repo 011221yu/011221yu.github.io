@@ -3,6 +3,7 @@ export const recordKinds = Object.freeze([
   "daily",
   "preference",
   "period",
+  "photo",
   "date",
   "anniversary",
   "memory",
@@ -13,6 +14,7 @@ export const modules = Object.freeze([
   { kind: "daily", icon: "☀", title: "每日生活", description: "三餐、照片、心情和小事" },
   { kind: "preference", icon: "♡", title: "特别事项", description: "喜好、身体状况与需要留意的事" },
   { kind: "period", icon: "◇", title: "生理期", description: "每次的日期、身体感受与照顾事项" },
+  { kind: "photo", icon: "▧", title: "照片记录", description: "把一组照片和背后的故事收藏起来" },
   { kind: "date", icon: "⌖", title: "约会清单", description: "想去的地方与完成的约定" },
   { kind: "anniversary", icon: "◇", title: "纪念日", description: "重要日期与温柔提醒" },
   { kind: "memory", icon: "✦", title: "回忆总结", description: "在本机把一段时光整理成文" },
@@ -92,7 +94,7 @@ export function createMemorySummary(records, { dateFrom = "", dateTo = "" } = {}
   });
   if (sourceRecords.length === 0) throw new RangeError("这个时间范围内还没有可总结的记录。");
 
-  const labels = { timeline: "重要时刻", daily: "日常", preference: "特别事项", period: "生理期", date: "约会", anniversary: "纪念日" };
+  const labels = { timeline: "重要时刻", daily: "日常", preference: "特别事项", period: "生理期", photo: "照片记录", date: "约会", anniversary: "纪念日" };
   const counts = new Map();
   const moods = new Map();
   let photoCount = 0;

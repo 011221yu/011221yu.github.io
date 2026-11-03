@@ -9,7 +9,7 @@ import {
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=10";
+} from "./domain.js?v=11";
 import {
   addRecord,
   createBackup,
@@ -17,7 +17,8 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=10";
+} from "./storage.js?v=11";
+import { setupSync } from "./sync-ui.js?v=11";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -48,6 +49,17 @@ const viewerError = document.querySelector("#viewer-error");
 const toast = document.querySelector("#toast");
 
 const formDefinitions = Object.freeze({
+  photo: {
+    title: "收藏一组照片",
+    description: "一次选多张照片，给这组画面写几句说明。",
+    fields: [
+      { name: "date", label: "日期", type: "date", required: true },
+      { name: "title", label: "这组照片的名字", type: "text", required: true, placeholder: "例如：周末的校园散步" },
+      { name: "location", label: "地点", type: "text" },
+      { name: "note", label: "照片里的故事", type: "textarea" },
+      { name: "photo", label: "照片（至少一张）", type: "file" },
+    ],
+  },
   timeline: {
     title: "记一段重要时刻",
     description: "适合第一次、纪念片段和想长期记住的故事。",
@@ -152,6 +164,10 @@ let viewerPhotos = [];
 let viewerIndex = 0;
 let viewerUrl;
 let toastTimer;
+let cloudMode = false;
+let cloudUserId = null;
+let draftId = crypto.randomUUID();
+let viewerGeneration = 0;
 
 try {
   records = await readRecords();
@@ -160,7 +176,7 @@ try {
   showStatus(error.message, true);
 }
 
-const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", date: "pin", anniversary: "calendar", memory: "spark" };
+const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", photo: "photo", date: "pin", anniversary: "calendar", memory: "spark" };
 for (const module of [{ kind: "all", title: "全部手账" }, ...modules]) {
   const card = document.createElement("button");
   card.type = "button";
@@ -178,6 +194,15 @@ for (const module of [{ kind: "all", title: "全部手账" }, ...modules]) {
 }
 
 document.querySelector("#today-label").textContent = new Date().toLocaleDateString("zh-CN", { year: "numeric", month: "long", day: "numeric", weekday: "long" });
+const sync = setupSync({
+  getLocal: readRecords,
+  isBusy: () => editor.open || photoViewer.open || saving,
+  onRecords: async (next, active, uid) => {
+    records = next; cloudMode = active; cloudUserId = uid;
+    editingId = null; selectedPhotos = []; renderRecords();
+    document.querySelector("footer small").textContent = active ? "Love OS · 两人空间，只有彼此能看见共享记录" : "Love OS · 记录留在本机，请定期备份";
+  },
+});
 document.querySelector("#new-entry").addEventListener("click", () => openEditor());
 document.querySelector("#mobile-compose").addEventListener("click", () => openEditor());
 document.querySelector("#close-editor").addEventListener("click", closeEditor);
@@ -223,6 +248,7 @@ photoViewer.addEventListener("keydown", (event) => {
   }
 });
 photoViewer.addEventListener("close", () => {
+  viewerGeneration++;
   if (viewerUrl) URL.revokeObjectURL(viewerUrl);
   viewerUrl = undefined;
   viewerImage.removeAttribute("src");
@@ -246,7 +272,7 @@ form.addEventListener("submit", async (event) => {
     for (const field of definition.fields) {
       if (field.type === "generated") continue;
       if (field.type === "file") {
-        payload.photos = selectedPhotos.map(validatePhotoFile);
+        payload.photos = selectedPhotos.map(photo => photo.cloud ? photo : validatePhotoFile(photo));
       } else {
         payload[field.name] = String(values.get(field.name) ?? "").trim();
       }
@@ -256,7 +282,14 @@ form.addEventListener("submit", async (event) => {
     if (definition.fields.some((field) => field.type === "file")) delete finalPayload.photo;
     if (formKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
     if (formKind === "period") validatePeriodDates(finalPayload);
-    records = await addRecord(existing ? updateRecord({ ...existing, kind: formKind }, finalPayload) : createRecord(formKind, finalPayload));
+    if (formKind === "photo" && !selectedPhotos.length) throw new Error("请至少选择一张照片");
+    const record = existing ? updateRecord({ ...existing, kind: formKind }, finalPayload) : createRecord(formKind, finalPayload, { id: draftId });
+    if (cloudMode) {
+      const cloud = await sync.client();
+      await cloud.save(record, String(values.get("visibility") || "shared"), sync.progress);
+      records = await cloud.list();
+    } else records = await addRecord(record);
+    draftId = crypto.randomUUID();
     const wasEditing = Boolean(existing);
     const savedKind = formKind;
     editingId = null;
@@ -283,7 +316,8 @@ recordSearch.addEventListener("input", renderRecords);
 
 exportBackupButton.addEventListener("click", async () => {
   try {
-    const contents = await createBackup(records);
+    const exportRecords = cloudMode ? await (await sync.client()).exportRecords(records) : records;
+    const contents = await createBackup(exportRecords);
     const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -300,6 +334,7 @@ importBackupInput.addEventListener("change", async () => {
   const file = importBackupInput.files?.[0];
   if (!file) return;
   try {
+    if (cloudMode) throw new Error("请先切回本机手账恢复备份，再从空间设置中选择上传");
     const restored = await restoreBackup(await file.text());
     records = restored.records;
     renderRecords();
@@ -374,6 +409,16 @@ function renderForm() {
     }
   }
 
+  if (cloudMode) {
+    const label = document.createElement("label");
+    label.className = "field field-wide";
+    const control = document.createElement("select"); control.name = "visibility";
+    for (const [value, text] of [["shared", "两人共享"], ["private", "仅自己"]]) {
+      const option = document.createElement("option"); option.value = value; option.textContent = text; control.append(option);
+    }
+    control.value = existing?.visibility || "shared";
+    label.append("谁可以看到", control); formFields.append(label);
+  }
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.textContent = editingId ? "保存修改" : definition.submitLabel || "保存这一刻";
   submitButton.disabled = !storageReady;
@@ -427,9 +472,8 @@ function renderPhotoSelection(container) {
   selectedPhotos.forEach((photo, index) => {
     const item = document.createElement("div");
     const image = document.createElement("img");
-    const url = URL.createObjectURL(photo);
-    previewUrls.push(url);
-    image.src = url;
+    if (photo.cloud) setCloudPhoto(image, photo);
+    else { const url = URL.createObjectURL(photo); previewUrls.push(url); image.src = url; }
     image.alt = `已选照片 ${index + 1}`;
     image.className = "record-photo";
     const remove = document.createElement("button");
@@ -509,7 +553,7 @@ function renderRecords() {
   if (albumView) {
     let photoCount = 0;
     for (const record of photoRecords) {
-      getRecordPhotos(record.payload).filter((photo) => photo instanceof Blob).forEach((photo, index) => {
+      getRecordPhotos(record.payload).filter((photo) => photo instanceof Blob || photo.cloud).forEach((photo, index) => {
         const item = document.createElement("article");
         item.className = "album-item";
         const caption = document.createElement("div");
@@ -572,6 +616,7 @@ function createRecordCard(record) {
   const kind = document.createElement("span");
   kind.className = "record-kind";
   kind.textContent = moduleNames[recordKind];
+  if (cloudMode) kind.textContent += ` · ${record.ownerId === cloudUserId ? "我" : "对方"} · ${record.visibility === "private" ? "仅自己" : "两人共享"}`;
   const title = document.createElement("h3");
   title.textContent = getRecordTitle(record);
   heading.append(kind, title);
@@ -610,7 +655,9 @@ function createRecordCard(record) {
   removeButton.addEventListener("click", async () => {
     if (!window.confirm("确定删除这条记录吗？删除后无法恢复。")) return;
     try {
-      records = await removeRecord(record.id);
+      if (cloudMode) {
+        const cloud = await sync.client(); await cloud.remove(record); records = await cloud.list();
+      } else records = await removeRecord(record.id);
       if (editingId === record.id) {
         editingId = null;
         renderForm();
@@ -622,6 +669,7 @@ function createRecordCard(record) {
     }
   });
   actions.append(editButton, removeButton);
+  if (cloudMode && record.ownerId !== cloudUserId) actions.hidden = true;
   top.append(heading, actions);
 
   const photos = getRecordPhotos(record.payload);
@@ -629,7 +677,7 @@ function createRecordCard(record) {
   gallery.className = "photo-gallery";
   gallery.dataset.count = String(photos.length);
   for (const [index, photo] of photos.entries()) {
-    if (!(photo instanceof Blob)) continue;
+    if (!(photo instanceof Blob) && !photo.cloud) continue;
     gallery.append(createPhotoTile(record, photo, index));
   }
 
@@ -674,7 +722,7 @@ function startEditing(record) {
 
 function getRecordTitle(record) {
   if (getRecordKind(record) === "period") return record.payload.item || "这一次生理期";
-  if (["timeline", "date", "anniversary", "memory"].includes(record.kind)) return record.payload.title;
+  if (["timeline", "date", "anniversary", "memory", "photo"].includes(record.kind)) return record.payload.title;
   if (record.kind === "preference") return record.payload.item;
   return `${record.payload.mood || "平常"}的一天`;
 }
@@ -700,6 +748,7 @@ function openDialog(dialog) {
 
 function openEditor(kind = selectedKind === "all" ? "daily" : selectedKind) {
   editingId = null;
+  draftId = crypto.randomUUID();
   formKind = kind;
   draftDirty = false;
   renderForm();
@@ -727,9 +776,8 @@ function createPhotoTile(record, photo, index) {
   image.className = "record-photo";
   image.alt = `${getRecordTitle(record)}的照片 ${index + 1}`;
   image.loading = "lazy";
-  const url = URL.createObjectURL(photo);
-  recordPhotoUrls.push(url);
-  image.src = url;
+  if (photo.cloud) setCloudPhoto(image, photo);
+  else { const url = URL.createObjectURL(photo); recordPhotoUrls.push(url); image.src = url; }
   image.addEventListener("error", () => {
     const fallback = document.createElement("span");
     fallback.className = "photo-fallback";
@@ -754,10 +802,15 @@ function changePhoto(step) {
   renderViewer();
 }
 
-function renderViewer() {
+async function renderViewer() {
+  const generation = ++viewerGeneration;
   if (viewerUrl) URL.revokeObjectURL(viewerUrl);
   const photo = viewerPhotos[viewerIndex];
-  viewerUrl = URL.createObjectURL(photo);
+  try {
+    const url = photo.cloud ? await (await sync.client()).photoUrl(photo) : URL.createObjectURL(photo);
+    if (generation !== viewerGeneration) { if (!photo.cloud) URL.revokeObjectURL(url); return; }
+    viewerUrl = url;
+  } catch (error) { viewerImage.hidden = true; viewerError.hidden = false; return; }
   viewerImage.hidden = false;
   viewerError.hidden = true;
   viewerImage.src = viewerUrl;
@@ -768,6 +821,13 @@ function renderViewer() {
   const download = document.querySelector("#download-photo");
   download.href = viewerUrl;
   download.download = photo.name || `love-os-photo-${viewerIndex + 1}`;
+}
+
+async function setCloudPhoto(image, photo) {
+  try {
+    const url = await (await sync.client()).photoUrl(photo);
+    if (image.isConnected) image.src = url;
+  } catch (error) { image.alt = "照片加载失败，可稍后刷新重试"; }
 }
 
 function formatDate(value) {
