@@ -5,11 +5,13 @@ import {
   daysUntilAnniversary,
   getRecordPhotos,
   getRecordKind,
+  canPublishKind,
+  getRecordsForView,
   validatePeriodDates,
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=11";
+} from "./domain.js?v=12";
 import {
   addRecord,
   createBackup,
@@ -17,8 +19,8 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=11";
-import { setupSync } from "./sync-ui.js?v=11";
+} from "./storage.js?v=12";
+import { setupSync } from "./sync-ui.js?v=12";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -149,7 +151,7 @@ const formDefinitions = Object.freeze({
 });
 
 const moduleNames = Object.fromEntries(modules.map((module) => [module.kind, module.title]));
-let selectedKind = "all";
+let selectedKind = "home";
 let formKind = "daily";
 let records = [];
 let storageReady = true;
@@ -176,8 +178,8 @@ try {
   showStatus(error.message, true);
 }
 
-const icons = { all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", photo: "photo", date: "pin", anniversary: "calendar", memory: "spark" };
-for (const module of [{ kind: "all", title: "全部手账" }, ...modules]) {
+const icons = { home: "book", feed: "heart", all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", photo: "photo", date: "pin", anniversary: "calendar", memory: "spark" };
+for (const module of [{ kind: "home", title: "首页" }, { kind: "feed", title: "共同动态" }, ...modules]) {
   const card = document.createElement("button");
   card.type = "button";
   card.className = "module-card";
@@ -205,6 +207,7 @@ const sync = setupSync({
 });
 document.querySelector("#new-entry").addEventListener("click", () => openEditor());
 document.querySelector("#mobile-compose").addEventListener("click", () => openEditor());
+document.querySelector("#home-connect").addEventListener("click", () => sync.open());
 document.querySelector("#close-editor").addEventListener("click", closeEditor);
 editor.addEventListener("cancel", (event) => { event.preventDefault(); closeEditor(); });
 form.addEventListener("input", () => { draftDirty = true; });
@@ -265,7 +268,7 @@ form.addEventListener("submit", async (event) => {
   saving = true;
   form.inert = true;
   kindPicker.disabled = true;
-  form.querySelector("button[type='submit']").disabled = true;
+  form.querySelectorAll("button[type='submit']").forEach(button => { button.disabled = true; });
 
   try {
     const payload = {};
@@ -283,10 +286,11 @@ form.addEventListener("submit", async (event) => {
     if (formKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
     if (formKind === "period") validatePeriodDates(finalPayload);
     if (formKind === "photo" && !selectedPhotos.length) throw new Error("请至少选择一张照片");
+    const publishing = cloudMode && canPublishKind(formKind) && event.submitter?.value === "shared";
     const record = existing ? updateRecord({ ...existing, kind: formKind }, finalPayload) : createRecord(formKind, finalPayload, { id: draftId });
     if (cloudMode) {
       const cloud = await sync.client();
-      await cloud.save(record, String(values.get("visibility") || "shared"), sync.progress);
+      await cloud.save(record, publishing ? "shared" : "private", sync.progress);
       records = await cloud.list();
     } else records = await addRecord(record);
     draftId = crypto.randomUUID();
@@ -297,16 +301,18 @@ form.addEventListener("submit", async (event) => {
     editor.close();
     form.reset();
     renderForm();
-    if (selectedKind !== "all" && selectedKind !== savedKind) selectModule(savedKind);
+    if (publishing) selectModule("feed");
+    else if (selectedKind === "feed") selectModule(savedKind);
+    else if (selectedKind !== "all" && selectedKind !== savedKind) selectModule(savedKind);
     else renderRecords();
-    showStatus(wasEditing ? "修改已保存，原记录已更新。" : savedKind === "memory" ? "这一段回忆，整理好了。" : "这一刻，已经好好收藏。", false);
+    showStatus(publishing ? "已发布到共同动态，你们都能看到。" : cloudMode ? "已保存给自己，只有你能看到。" : wasEditing ? "修改已保存，原记录已更新。" : savedKind === "memory" ? "这一段回忆，整理好了。" : "这一刻，已经好好收藏。", false);
   } catch (error) {
     showStatus(error.message || "保存失败。浏览器空间可能已满，请先不要清理或刷新页面。", true);
   } finally {
     saving = false;
     form.inert = false;
     kindPicker.disabled = Boolean(editingId);
-    form.querySelector("button[type='submit']").disabled = !storageReady;
+    form.querySelectorAll("button[type='submit']").forEach(button => { button.disabled = !storageReady; });
   }
 });
 
@@ -359,7 +365,7 @@ function selectModule(kind) {
     if (button.dataset.browse === kind) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
-  document.querySelector("#records-title").textContent = kind === "all" ? "留住的小事" : moduleNames[kind];
+  document.querySelector("#records-title").textContent = kind === "all" ? "我的手账" : kind === "feed" ? "共同动态" : moduleNames[kind];
   renderRecords();
   if (storageReady) showStatus("", false);
 }
@@ -409,18 +415,19 @@ function renderForm() {
     }
   }
 
-  if (cloudMode) {
-    const label = document.createElement("label");
-    label.className = "field field-wide";
-    const control = document.createElement("select"); control.name = "visibility";
-    for (const [value, text] of [["shared", "两人共享"], ["private", "仅自己"]]) {
-      const option = document.createElement("option"); option.value = value; option.textContent = text; control.append(option);
-    }
-    control.value = existing?.visibility || "shared";
-    label.append("谁可以看到", control); formFields.append(label);
-  }
+  const privacy = document.createElement("p");
+  privacy.className = "field-wide privacy-note";
+  privacy.textContent = !canPublishKind(formKind) ? "关心对方的小事，留给自己记住。这个模块仅自己可见，不支持发布。"
+    : !cloudMode ? "当前保存在本机。登录并切换到账号手账后，可选择发布到共同动态。"
+    : existing?.visibility === "shared" ? "这条记录已发布。选择保存给自己，会从共同动态中收回。"
+    : "保存给自己，只有你能看见；主动发布后，你们都能在共同动态里看到。";
+  formFields.append(privacy);
+  const publishButton = document.querySelector("#publish-record");
+  publishButton.hidden = !cloudMode || !canPublishKind(formKind);
+  publishButton.textContent = existing?.visibility === "shared" ? "更新共同动态" : "发布到共同动态";
+  publishButton.disabled = !storageReady;
   const submitButton = form.querySelector("button[type='submit']");
-  submitButton.textContent = editingId ? "保存修改" : definition.submitLabel || "保存这一刻";
+  submitButton.textContent = cloudMode ? "保存给自己" : editingId ? "保存修改" : definition.submitLabel || "保存给自己";
   submitButton.disabled = !storageReady;
   cancelEditButton.hidden = !editingId;
   setDefaultDate();
@@ -511,18 +518,34 @@ function renderRecords() {
   for (const url of recordPhotoUrls) URL.revokeObjectURL(url);
   recordPhotoUrls = [];
   renderDashboard();
-  const moduleRecords = records.filter((record) => selectedKind === "all" || getRecordKind(record) === selectedKind);
+  const isHome = selectedKind === "home";
+  document.querySelector(".overview").hidden = !isHome;
+  document.querySelector(".little-stats").hidden = !isHome;
+  document.querySelector("#home-panel").hidden = !isHome;
+  workspace.hidden = isHome;
+  document.querySelector(".page-top h1").textContent = isHome ? "我们的生活手账。" : selectedKind === "feed" ? "共同动态" : moduleNames[selectedKind] || "我的手账";
+  document.querySelector(".subtitle").textContent = isHome ? "把小事收藏，让回忆有迹可循。" : selectedKind === "feed" ? "发布给彼此的生活，在这里相遇。" : canPublishKind(selectedKind) ? "可以私藏，也可以主动发布给彼此。" : "认真记住，悄悄关心。这里只对自己可见。";
+  const viewOptions = { cloud: cloudMode, userId: cloudUserId };
+  const moduleRecords = getRecordsForView(records, selectedKind, viewOptions);
   const query = recordSearch.value;
   const visibleRecords = moduleRecords.filter((record) => matchesRecordSearch(record, query))
-    .sort((left, right) => getRecordDate(right).localeCompare(getRecordDate(left)) || right.createdAt.localeCompare(left.createdAt));
+    .sort((left, right) => selectedKind === "feed" ? right.publishedAt.localeCompare(left.publishedAt) : getRecordDate(right).localeCompare(getRecordDate(left)) || right.createdAt.localeCompare(left.createdAt));
   recordCount.textContent = query.trim() ? `${visibleRecords.length}/${moduleRecords.length} 条` : `${moduleRecords.length} 条`;
   recordList.classList.toggle("album-view", albumView);
+  recordList.classList.toggle("shared-feed", selectedKind === "feed");
+  document.querySelector("#records-title").textContent = selectedKind === "all" ? "我的手账" : selectedKind === "feed" ? "共同动态" : moduleNames[selectedKind];
   document.querySelector("#view-journal").setAttribute("aria-pressed", String(!albumView));
   document.querySelector("#view-album").setAttribute("aria-pressed", String(albumView));
   for (const button of grid.querySelectorAll(".module-card")) {
-    button.querySelector(".module-count").textContent = records.filter((record) => button.dataset.kind === "all" || getRecordKind(record) === button.dataset.kind).length;
+    button.querySelector(".module-count").textContent = button.dataset.kind === "home" ? "" : getRecordsForView(records, button.dataset.kind, viewOptions).length;
   }
   recordList.replaceChildren();
+  if (isHome) return;
+  if (selectedKind === "feed") {
+    const intro = document.createElement("p"); intro.className = "feed-intro";
+    intro.textContent = cloudMode ? "只收录你们主动发布的生活。私藏和关心提醒，不会出现在这里。" : "登录并进入我的手账，就能看到你们共同发布的动态。";
+    recordList.append(intro);
+  }
   if (selectedKind === "period" && !albumView) {
     const hint = document.createElement("p");
     hint.className = "panel-description";
@@ -535,14 +558,15 @@ function renderRecords() {
     const empty = document.createElement("div");
     empty.className = "empty-state";
     const title = document.createElement("h3");
-    title.textContent = query.trim() ? "这个瞬间，还没找到" : albumView ? "等一张值得收藏的照片" : selectedKind === "period" ? "从这一次，开始记下" : "故事，从一件小事开始";
+    title.textContent = query.trim() ? "这个瞬间，还没找到" : selectedKind === "feed" ? "等你们发布第一个瞬间" : albumView ? "等一张值得收藏的照片" : selectedKind === "period" ? "从这一次，开始记下" : "故事，从一件小事开始";
     const text = document.createElement("p");
-    text.textContent = query.trim() ? "换个词试试看，或者清空搜索查看全部。" : albumView ? "编辑已有记录或记一笔，把照片也留在故事里。" : selectedKind === "period" ? "记下开始日期、身体感受和注意事项，结束后再来补一笔。" : "一顿晚饭，一次散步，一句想记住的话。简单写下就好。";
+    text.textContent = query.trim() ? "换个词试试看，或者清空搜索查看全部。" : selectedKind === "feed" ? "在时间轴、照片、每日生活等记录里选择发布，这里就会留下你们的故事。" : albumView ? "编辑已有记录或记一笔，把照片也留在故事里。" : selectedKind === "period" ? "记下开始日期、身体感受和注意事项，结束后再来补一笔。" : "一顿晚饭，一次散步，一句想记住的话。简单写下就好。";
     const action = document.createElement("button");
     action.type = "button";
-    action.textContent = query.trim() ? "清空搜索" : "＋ 记下这一刻";
+    action.textContent = query.trim() ? "清空搜索" : selectedKind === "feed" && !cloudMode ? "登录查看共同动态" : "＋ 记下这一刻";
     action.addEventListener("click", () => {
       if (query.trim()) { recordSearch.value = ""; renderRecords(); }
+      else if (selectedKind === "feed" && !cloudMode) sync.open();
       else openEditor();
     });
     empty.append(createIcon(albumView ? "photo" : "book"), title, text, action);
@@ -582,7 +606,7 @@ function renderRecords() {
 
   let previousDate;
   for (const record of visibleRecords) {
-    const date = getRecordDate(record);
+    const date = selectedKind === "feed" ? record.publishedAt.slice(0, 10) : getRecordDate(record);
     const groupByMonth = ["period", "photo"].includes(selectedKind);
     const group = groupByMonth ? date.slice(0, 7) : date;
     if (group !== previousDate) {
@@ -625,7 +649,7 @@ function createRecordCard(record) {
   const kind = document.createElement("span");
   kind.className = "record-kind";
   kind.textContent = moduleNames[recordKind];
-  if (cloudMode) kind.textContent += ` · ${record.ownerId === cloudUserId ? "我" : "对方"} · ${record.visibility === "private" ? "仅自己" : "两人共享"}`;
+  if (cloudMode) kind.textContent += ` · ${record.ownerId === cloudUserId ? "我" : "对方"} · ${record.visibility === "private" ? "仅自己" : "已发布"}`;
   const title = document.createElement("h3");
   title.textContent = getRecordTitle(record);
   heading.append(kind, title);
@@ -705,6 +729,18 @@ function createRecordCard(record) {
   savedAt.className = "saved-at";
   const wasUpdated = record.updatedAt !== record.createdAt;
   savedAt.textContent = `${wasUpdated ? "更新" : "保存"}于 ${new Date(wasUpdated ? record.updatedAt : record.createdAt).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" })}`;
+  if (selectedKind === "feed") {
+    const byline = document.createElement("div"); byline.className = "feed-byline";
+    const avatar = document.createElement("span"); avatar.className = "feed-avatar";
+    avatar.textContent = record.ownerId === cloudUserId ? "我" : "对方";
+    const author = document.createElement("div");
+    const name = document.createElement("strong"); name.textContent = record.ownerId === cloudUserId ? "我发布的生活" : "对方发布的生活";
+    const time = document.createElement("small");
+    time.textContent = new Date(record.publishedAt).toLocaleString("zh-CN", { dateStyle: "medium", timeStyle: "short" });
+    author.append(name, time); byline.append(avatar, author); card.append(byline);
+    const eventDate = document.createElement("p"); eventDate.className = "feed-event-date";
+    eventDate.textContent = "记录日期 · " + formatDate(getRecordDate(record)); heading.append(eventDate);
+  }
   card.append(top);
   if (gallery.childElementCount) card.append(gallery);
   card.append(details, savedAt);
@@ -755,7 +791,7 @@ function openDialog(dialog) {
   document.body.classList.add("modal-open");
 }
 
-function openEditor(kind = selectedKind === "all" ? "daily" : selectedKind) {
+function openEditor(kind = ["all", "feed", "home"].includes(selectedKind) ? "daily" : selectedKind) {
   editingId = null;
   draftId = crypto.randomUUID();
   formKind = kind;

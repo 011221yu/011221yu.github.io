@@ -1,15 +1,15 @@
-const CACHE_NAME = "love-os-v11-couple";
+const CACHE_NAME = "love-os-v12-home-feed";
 const APP_FILES = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/assets/icon.svg",
-  "/src/app.js?v=11",
-  "/src/domain.js?v=11",
-  "/src/storage.js?v=11",
-  "/src/styles.css?v=11",
-  "/src/sync-ui.js?v=11",
-  "/src/cloud.js?v=11",
+  "/src/app.js?v=12",
+  "/src/domain.js?v=12",
+  "/src/storage.js?v=12",
+  "/src/styles.css?v=12",
+  "/src/sync-ui.js?v=12",
+  "/src/cloud.js?v=12",
 ];
 
 self.addEventListener("install", (event) => {

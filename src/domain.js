@@ -56,6 +56,23 @@ export function getRecordKind(record) {
   return record.kind === "preference" && record.payload.category === "生理期" ? "period" : record.kind;
 }
 
+export function canPublishKind(kind) {
+  return recordKinds.includes(kind) && !["preference", "period"].includes(kind);
+}
+
+export function normalizeVisibility(kind, requested = "private") {
+  return canPublishKind(kind) && requested === "shared" ? "shared" : "private";
+}
+
+export function getRecordsForView(records, view, { cloud = false, userId = null } = {}) {
+  return records.filter(record => {
+    if (record.deletedAt) return false;
+    if (view === "feed") return cloud && canPublishKind(getRecordKind(record)) && record.visibility === "shared" && Boolean(record.publishedAt);
+    if (cloud && record.ownerId !== userId) return false;
+    return view === "all" || getRecordKind(record) === view;
+  });
+}
+
 export function validatePeriodDates(payload) {
   const isDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
     && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;

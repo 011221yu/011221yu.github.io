@@ -1,5 +1,5 @@
 let clientPromise;
-const client = () => clientPromise ||= import("./cloud.js?v=11");
+const client = () => clientPromise ||= import("./cloud.js?v=12");
 export function setupSync({ getLocal, onRecords, isBusy }) {
   let active = false;
   let state = { user: null, space: null };
@@ -7,12 +7,12 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
   const bar = document.createElement("section");
   bar.className = "sync-bar";
   bar.setAttribute("aria-label", "记录存放位置");
-  bar.innerHTML = '<div class="view-switch"><button type="button" data-mode="local" aria-pressed="true">本机手账</button><button type="button" data-mode="cloud" aria-pressed="false">两人空间</button></div><span class="sync-state" role="status">记录保存在本机</span><button type="button" class="text-button" data-account>连接／管理</button>';
+  bar.innerHTML = '<div class="view-switch"><button type="button" data-mode="local" aria-pressed="true">本机手账</button><button type="button" data-mode="cloud" aria-pressed="false">账号手账</button></div><span class="sync-state" role="status">记录保存在本机</span><button type="button" class="text-button" data-account>连接／管理</button>';
   document.querySelector(".page-top").after(bar);
   const badge = bar.querySelector(".sync-state");
   const panel = document.createElement("dialog");
   panel.className = "editor-dialog sync-dialog";
-  panel.innerHTML = '<div class="form-panel"><div class="editor-top"><h2>我们的两人空间</h2><button type="button" class="icon-button" data-close aria-label="关闭空间设置">×</button></div><p class="panel-description">各自登录，通过邀请码连接；只有空间里的两人能查看共享记录。</p><form data-login class="form-fields"><label class="field">用户名<input name="username" autocomplete="username" required /></label><label class="field">密码<input name="password" type="password" autocomplete="current-password" required /></label><button class="primary-button field-wide" type="submit">登录</button><p class="panel-description field-wide">使用已开通的 CloudBase 用户名账号。需要开通或找回账号时，请由环境所有者在 CloudBase 用户管理中处理。</p></form><section data-connected hidden><p data-identity></p><p data-members></p><button class="secondary-button" data-create-space type="button">创建我们的空间</button><button class="secondary-button" data-invite type="button">生成／更换邀请码</button><p class="panel-description">邀请码有效期 24 小时，只能使用一次。重新生成后旧码失效。</p><textarea data-invite-code readonly hidden aria-label="邀请码" rows="3"></textarea><button class="secondary-button" data-copy type="button" hidden>复制邀请码</button><form data-join class="form-fields"><label class="field field-wide">她发来的邀请码<textarea name="code" required rows="3" autocomplete="off"></textarea></label><button class="secondary-button" type="submit">加入她的空间</button></form><button class="primary-button" data-enter type="button">进入两人空间</button><button class="secondary-button" data-import-open type="button">选择本机旧记录上传</button><button class="text-button" data-logout type="button">退出账号</button><form data-import hidden><p>只上传勾选的记录，原件保留在本机。</p><div data-local-list class="import-list"></div><label class="field">上传后的可见范围<select name="visibility"><option value="shared">两人共享</option><option value="private">仅自己</option></select></label><button class="primary-button" type="submit">上传选中记录</button></form></section><p data-message role="status" aria-live="polite"></p></div>';
+  panel.innerHTML = '<div class="form-panel"><div class="editor-top"><h2>我们的两人空间</h2><button type="button" class="icon-button" data-close aria-label="关闭空间设置">×</button></div><p class="panel-description">各自登录，通过邀请码连接；只有空间里的两人能查看共享记录。</p><form data-login class="form-fields"><label class="field">用户名<input name="username" autocomplete="username" required /></label><label class="field">密码<input name="password" type="password" autocomplete="current-password" required /></label><button class="primary-button field-wide" type="submit">登录</button><p class="panel-description field-wide">使用已开通的 CloudBase 用户名账号。需要开通或找回账号时，请由环境所有者在 CloudBase 用户管理中处理。</p></form><section data-connected hidden><p data-identity></p><p data-members></p><button class="secondary-button" data-create-space type="button">创建我们的空间</button><button class="secondary-button" data-invite type="button">生成／更换邀请码</button><p class="panel-description">邀请码有效期 24 小时，只能使用一次。重新生成后旧码失效。</p><textarea data-invite-code readonly hidden aria-label="邀请码" rows="3"></textarea><button class="secondary-button" data-copy type="button" hidden>复制邀请码</button><form data-join class="form-fields"><label class="field field-wide">她发来的邀请码<textarea name="code" required rows="3" autocomplete="off"></textarea></label><button class="secondary-button" type="submit">加入她的空间</button></form><button class="primary-button" data-enter type="button">进入两人空间</button><button class="secondary-button" data-import-open type="button">选择本机旧记录上传</button><button class="text-button" data-logout type="button">退出账号</button><form data-import hidden><p>只上传勾选的记录，原件保留在本机。</p><div data-local-list class="import-list"></div><label class="field">上传后的可见范围<select name="visibility"><option value="private">仅自己（先私藏）</option><option value="shared">发布到共同动态（可发布的模块）</option></select></label><button class="primary-button" type="submit">上传选中记录</button></form></section><p data-message role="status" aria-live="polite"></p></div>';
   document.body.append(panel);
   const message = panel.querySelector("[data-message]");
   const connected = panel.querySelector("[data-connected]");
@@ -27,12 +27,14 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
     loginForm.hidden = Boolean(state.user);
     connected.hidden = !state.user;
     panel.querySelector("[data-identity]").textContent = state.user ? "已登录：" + (state.user.user_metadata?.username || state.user.username || state.user.id.slice(-8)) : "";
-    panel.querySelector("[data-members]").textContent = state.space ? state.space.partner_id ? "已连接两位成员。新记录默认两人共享。" : "空间已创建，等待另一位加入。" : "创建空间，或填写对方的邀请码加入。";
+    panel.querySelector("[data-members]").textContent = state.space ? state.space.partner_id ? "已连接两位成员。保存给自己或主动发布。" : "空间已创建，等待另一位加入。" : "创建空间，或填写对方的邀请码加入。";
     panel.querySelector("[data-create-space]").hidden = Boolean(state.space);
     panel.querySelector("[data-join]").hidden = Boolean(state.space);
     panel.querySelector("[data-invite]").hidden = !state.space || state.space.owner_id !== state.user?.id || Boolean(state.space.partner_id);
     panel.querySelector("[data-enter]").hidden = !state.space;
     panel.querySelector("[data-import-open]").hidden = !state.space;
+    const homeState = document.querySelector("#home-account-state");
+    if (homeState) homeState.textContent = !state.user ? "登录自己的账号，连接彼此的生活。" : state.space?.partner_id ? "你们已连接 · 私藏与发布，由自己决定。" : "已登录，等待连接你们的两人空间。";
     bar.querySelector('[data-mode="local"]').setAttribute("aria-pressed", String(!active));
     bar.querySelector('[data-mode="cloud"]').setAttribute("aria-pressed", String(active));
   }
@@ -121,7 +123,7 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
       list.append(label);
     }
     panel.querySelector("[data-import]").hidden = false;
-    setMessage(local.length ? "勾选要上传的旧记录。" : "这个浏览器还没有本机记录。可先回到本机模式恢复旧备份。");
+    setMessage(local.length ? "勾选要上传的旧记录。特别事项、生理期始终仅自己可见。" : "这个浏览器还没有本机记录。可先回到本机模式恢复旧备份。");
   }));
   panel.querySelector("[data-import]").addEventListener("submit", event => {
     event.preventDefault();
@@ -147,7 +149,7 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
     active = true; badge.textContent = "正在连接两人空间…"; refresh();
   }
   return {
-    refresh, client, isActive: () => active,
+    open, refresh, client, isActive: () => active,
     progress: text => { badge.textContent = text; },
     async saved() { if (active) { await refresh(); badge.textContent = "已保存并同步"; } },
   };
