@@ -1,13 +1,13 @@
 (function(root){
  'use strict';
  const addDays=(date,n)=>new Date(Date.parse(date+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
- function plan({date,examDate,rest=false,minutes=15,days={},progress={},lessons=root.GongkaoEssay.lessons}){
+ function plan({date,examDate,rest=false,minutes=15,days={},progress={},paperType='pending',lessons=root.GongkaoEssay.lessons}){
   const blank={version:1,date,examDate,minutes,newIds:[],reviewIds:[]};
   if(date>=examDate)return {...blank,mode:date===examDate?'exam':'after'};
   if(rest||minutes<=0)return {...blank,mode:rest?'rest':'unavailable'};
   if(days[date]?.version===1&&days[date].examDate===examDate)return days[date];
   const light=date>=addDays(examDate,-2);
-  const order=root.GongkaoEssay?.studyOrder||[];
+  const order=(['two','two-provisional'].includes(paperType)?root.GongkaoEssay?.paperTwoOrder:root.GongkaoEssay?.studyOrder)||[];
   const pending=lessons.filter(l=>!progress[l.id]?.completed).sort((a,b)=>(order.includes(a.id)?order.indexOf(a.id):999)-(order.includes(b.id)?order.indexOf(b.id):999));
   const due=lessons.filter(l=>progress[l.id]?.nextReview&&progress[l.id].nextReview<=date&&progress[l.id].learnedAt<date).sort((a,b)=>progress[a.id].nextReview.localeCompare(progress[b.id].nextReview));
   return {...blank,mode:light?'light':pending.length?'learn':'review',newIds:light?[]:pending.slice(0,1).map(l=>l.id),reviewIds:due.slice(0,2).map(l=>l.id)};
@@ -26,8 +26,8 @@
   if(due)return {mode:'review',id:due.id};
   const available=questions.filter(q=>!records[q.id]?.done);
   const count=Object.values(records).filter(a=>a.done).length;
-  const cycle=root.GongkaoEssay?.practiceCycle||['概括归纳','提出对策','综合分析','贯彻执行'];
-  const type=minutes>=100?(paperType==='one'?'作文':'贯彻执行'):cycle[count%cycle.length];
+  const cycle=(['two','two-provisional'].includes(paperType)?root.GongkaoEssay?.paperTwoCycle:root.GongkaoEssay?.practiceCycle)||['概括归纳','提出对策','综合分析','贯彻执行'];
+  const type=minutes>=100?'作文':cycle[count%cycle.length];
   const question=available.find(q=>q.type===type)||available.find(q=>q.type!=='作文');
   return {mode:question?'new':'custom',id:question?.id||'',type};
  }

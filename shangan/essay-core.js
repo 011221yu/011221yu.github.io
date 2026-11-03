@@ -30,4 +30,8 @@ GongkaoEssay.sources=sources;GongkaoEssay.coreTopics=topics;GongkaoEssay.lessons
 GongkaoEssay.byId=new Map(GongkaoEssay.lessons.map(l=>[l.id,l]));
 GongkaoEssay.studyOrder=['audit','core-county','group','core-industry','action','core-digital','analysis','core-life','execute','core-govern','cause','core-market','lesson','core-green','thesis','core-agri','argue','core-culture','words','core-bay','core-employment','core-city','cost','channel','team','agritour','participate','classify','essay-agriculture','essay-govern','case-education','case-science'];
 GongkaoEssay.practiceCycle=['概括归纳','提出对策','综合分析','贯彻执行','概括归纳','综合分析'];
+// Both routes retain every lesson. The second route brings concrete work and local scenes forward.
+GongkaoEssay.paperTwoOrder=[...new Set(['audit','core-county','group','action','core-govern','analysis','core-life','execute','words','thesis','argue',...GongkaoEssay.studyOrder])];
+GongkaoEssay.paperTwoCycle=['概括归纳','提出对策','综合分析','提出对策','概括归纳','贯彻执行'];
+GongkaoEssay.official='https://www.shantou.gov.cn/cnst/zwgk/jcxxgk/gggs/stzzb/content/post_2581549.html';
 })();

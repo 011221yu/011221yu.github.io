@@ -20,7 +20,7 @@ GongkaoPlanner.buildDay=function(args){
  }else{
   const light=args.date==='2026-11-28'||args.date>='2026-12-04';
   if(!nationalBefore||mixedPolitics)add('politics',nationalBefore?'粉笔政治／常识混合诊断':'政治理论／常识刷题',nationalBefore?10:30,nationalBefore?'做一小组马哲、法律等混合诊断，补全国时政之外的薄弱点；和当天25分钟全国专题合计35分钟。':'15–20题，订正后闭卷回忆；不排整套理论课。','政治理论常识');
-  add('essay','广东综合管理申论精练',light?40:day===3?110:70,day===3?'完成作文或作文提纲，结合材料论证；每周安排一次长练。':'一道小题独立作答，对照材料找遗漏并重写；不只读解析。','申论');
+  add('essay','广东申论精练｜共通能力＋卷型专项',light?40:day===3?110:70,day===3?'每周完整议论文：审题提纲20分钟、写作60分钟、检查改写30分钟。申论一、二均保留，题型与字数依题干。':day===5?'今日70分钟内练作文提纲或论证段，并修改最弱一段；不额外加课时。':'两卷交叉练概括、问题与对策、分析题，穿插贯彻执行；独立作答后找漏点、查原因、重写。','申论');
   add('material','申论方法与表达｜微课＋短练',15,'打开“申论·学习与实作”，完成方法回忆、场景表达短练与核对；原素材时间不另叠加。','申论','工作台');
   add('review','错题重做与学习登记',nationalBefore?25:30,'先重做昨天错题；登记正确率、耗时和错因。','复盘','工作台');
   add('gd','广东省情／时政在线练习',40,'省情每次25题，分20单元完成；时政轮换专题。完成后进入错题汇总。','广东省情时政','广东资料');
@@ -34,10 +34,10 @@ GongkaoPlanner.buildDay=function(args){
  }
  const seen=new Set(tasks.map(t=>t.id)),backlog=[];
  for(const t of args.carried||[])if(t.id?.startsWith('gd:')&&!seen.has(t.id)){seen.add(t.id);if(['material','politics','idioms','knowledge','national'].includes(t.kind))continue;if(used+t.minutes<=available&&t.minutes<=40){tasks.push({...t,title:t.title.startsWith('顺延｜')?t.title:'顺延｜'+t.title});used+=t.minutes}else backlog.push(t)}
- return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261103-essay',nextModule:'数资（资料分析＋数量关系）／判断／科学推理'};
+ return {...base,date:args.date,available,used,remaining:Math.max(0,available-used),tasks,backlog,mode:'gd-sprint',stage,version:'gd-20261103-paper-focus',nextModule:'数资（资料分析＋数量关系）／判断／科学推理'};
 };
 const gdOldEnsure=ensureDayPlan;
-ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261103-essay')force=true;return gdOldEnsure(date,force)};
+ensureDayPlan=function(date=today0,force=false){const key=dateKey(date),cached=state.planner.days[key];if(key>='2026-11-02'&&key<='2026-12-06'&&cached?.version!=='gd-20261103-paper-focus')force=true;return gdOldEnsure(date,force)};
 const gdOldPrimary=primaryTarget;
 primaryTarget=function(){return state.examTargets.find(x=>x.id==='guangdong'&&x.date>=dateKey(today0))||gdOldPrimary()};
 if(!state.notes.gdOfficialDates20261102){state.examTargets.forEach(t=>{if(t.id==='guangdong'){t.date='2026-12-06';t.source='official'}if(t.id==='guokao'){t.date='2026-11-29';t.source='official'}});state.notes.gdOfficialDates20261102=true;persist()}
