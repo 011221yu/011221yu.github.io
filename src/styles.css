@@ -221,7 +221,15 @@ noscript { padding: 24px; display: block; text-align: center; color: #b34a59; }
   .together-card, .anniversary-card { padding: 24px; }
   .little-stats { gap: 12px; }
 }
+.home-feeling { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; border: 1px solid #e5d7d4; border-radius: 18px; background: #f6ece8; }
+.home-feeling h2 { color: #71454c; }
+.home-feeling p:not(.eyebrow) { margin: 12px 0 0; font-size: 13px; line-height: 1.8; color: #796764; }
+.feeling-home-actions { display: flex; flex-shrink: 0; flex-direction: column; align-items: center; gap: 12px; }
+.feeling-home-actions .text-button { color: #71454c; min-height: 44px; }
 @media (max-width: 760px) {
+  .home-feeling { align-items: flex-start; flex-direction: column; gap: 16px; padding: 20px; }
+  .home-feeling h2 { font-size: 20px; }
+  .feeling-home-actions { width: 100%; flex-direction: row; flex-wrap: wrap; gap: 12px; }
   .home-account { align-items: flex-start; flex-direction: column; gap: 16px; padding: 20px; }
   .home-account h2 { font-size: 20px; }
   .home-shortcuts > button { padding: 16px 12px; gap: 8px 4px; }

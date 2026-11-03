@@ -11,7 +11,7 @@ import {
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=12";
+} from "./domain.js?v=13";
 import {
   addRecord,
   createBackup,
@@ -19,8 +19,8 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=12";
-import { setupSync } from "./sync-ui.js?v=12";
+} from "./storage.js?v=13";
+import { setupSync } from "./sync-ui.js?v=13";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
@@ -51,6 +51,18 @@ const viewerError = document.querySelector("#viewer-error");
 const toast = document.querySelector("#toast");
 
 const formDefinitions = Object.freeze({
+  feeling: {
+    title: "写一封心情来信",
+    description: "开心可以分享，低落也可以慢慢说。今天的心情，想说给谁听？",
+    fields: [
+      { name: "date", label: "日期", type: "date", required: true },
+      { name: "mood", label: "此刻心情", type: "select", required: true, options: ["开心", "平静", "想念", "有点低落", "委屈", "焦虑", "疲惫", "说不清"] },
+      { name: "moment", label: "想说的话（选填）", type: "textarea", placeholder: "可以写发生了什么，也可以只说：今天有点累，想被抱抱。" },
+      { name: "care", label: "今天希望怎样被关心？（选填）", type: "select", options: ["陪我聊聊", "给我一个拥抱", "帮我带份饭", "让我安静休息", "一起散散步", "暂时不用做什么", "其他（写在下面）"] },
+      { name: "careNote", label: "具体想要什么（选填）", type: "textarea", placeholder: "例如：今晚想聊十分钟，先听我说说就好。也可以留空。" },
+      { name: "photo", label: "此刻的照片（选填）", type: "file" },
+    ],
+  },
   photo: {
     title: "收藏一组照片",
     description: "一次选多张照片，给这组画面写几句说明。",
@@ -178,7 +190,7 @@ try {
   showStatus(error.message, true);
 }
 
-const icons = { home: "book", feed: "heart", all: "book", timeline: "book", daily: "sun", preference: "heart", period: "calendar", photo: "photo", date: "pin", anniversary: "calendar", memory: "spark" };
+const icons = { home: "book", feed: "heart", all: "book", timeline: "book", daily: "sun", feeling: "heart", preference: "heart", period: "calendar", photo: "photo", date: "pin", anniversary: "calendar", memory: "spark" };
 for (const module of [{ kind: "home", title: "首页" }, { kind: "feed", title: "共同动态" }, ...modules]) {
   const card = document.createElement("button");
   card.type = "button";
@@ -282,12 +294,14 @@ form.addEventListener("submit", async (event) => {
     }
     const existing = editingId ? records.find((record) => record.id === editingId) : null;
     const finalPayload = existing ? { ...existing.payload, ...payload } : payload;
+    if (formKind === "feeling") finalPayload.journalType = "feeling";
     if (definition.fields.some((field) => field.type === "file")) delete finalPayload.photo;
     if (formKind === "memory") Object.assign(finalPayload, createMemorySummary(records, finalPayload));
     if (formKind === "period") validatePeriodDates(finalPayload);
     if (formKind === "photo" && !selectedPhotos.length) throw new Error("请至少选择一张照片");
     const publishing = cloudMode && canPublishKind(formKind) && event.submitter?.value === "shared";
-    const record = existing ? updateRecord({ ...existing, kind: formKind }, finalPayload) : createRecord(formKind, finalPayload, { id: draftId });
+    const storedKind = modules.find(module => module.kind === formKind)?.recordKind || formKind;
+    const record = existing ? updateRecord({ ...existing, kind: storedKind }, finalPayload) : createRecord(storedKind, finalPayload, { id: draftId });
     if (cloudMode) {
       const cloud = await sync.client();
       await cloud.save(record, publishing ? "shared" : "private", sync.progress);
@@ -305,7 +319,7 @@ form.addEventListener("submit", async (event) => {
     else if (selectedKind === "feed") selectModule(savedKind);
     else if (selectedKind !== "all" && selectedKind !== savedKind) selectModule(savedKind);
     else renderRecords();
-    showStatus(publishing ? "已发布到共同动态，你们都能看到。" : cloudMode ? "已保存给自己，只有你能看到。" : wasEditing ? "修改已保存，原记录已更新。" : savedKind === "memory" ? "这一段回忆，整理好了。" : "这一刻，已经好好收藏。", false);
+    showStatus(savedKind === "feeling" ? publishing ? "已寄到共同动态，对方打开空间后就能看到。" : "这份心情，已经好好收下。留给自己，慢慢说也可以。" : publishing ? "已发布到共同动态，你们都能看到。" : cloudMode ? "已保存给自己，只有你能看到。" : wasEditing ? "修改已保存，原记录已更新。" : savedKind === "memory" ? "这一段回忆，整理好了。" : "这一刻，已经好好收藏。", false);
   } catch (error) {
     showStatus(error.message || "保存失败。浏览器空间可能已满，请先不要清理或刷新页面。", true);
   } finally {
@@ -422,12 +436,15 @@ function renderForm() {
     : existing?.visibility === "shared" ? "这条记录已发布。选择保存给自己，会从共同动态中收回。"
     : "保存给自己，只有你能看见；主动发布后，你们都能在共同动态里看到。";
   formFields.append(privacy);
+  if (formKind === "feeling") privacy.textContent = !cloudMode ? "先留在本机，只有这个浏览器能查看。切换到账号手账后，可选择寄给对方。"
+    : "留给自己时只有你能看见；寄给对方会发布到共同动态。只发送这封信的内容，不会自动带上其他私密记录。寄出后也可以收回。";
   const publishButton = document.querySelector("#publish-record");
   publishButton.hidden = !cloudMode || !canPublishKind(formKind);
-  publishButton.textContent = existing?.visibility === "shared" ? "更新共同动态" : "发布到共同动态";
+  publishButton.textContent = formKind === "feeling" ? existing?.visibility === "shared" ? "更新已寄出的信" : "寄给对方" : existing?.visibility === "shared" ? "更新共同动态" : "发布到共同动态";
   publishButton.disabled = !storageReady;
   const submitButton = form.querySelector("button[type='submit']");
   submitButton.textContent = cloudMode ? "保存给自己" : editingId ? "保存修改" : definition.submitLabel || "保存给自己";
+  if (formKind === "feeling") submitButton.textContent = existing?.visibility === "shared" ? "收回并留给自己" : "留给自己";
   submitButton.disabled = !storageReady;
   cancelEditButton.hidden = !editingId;
   setDefaultDate();
@@ -551,6 +568,11 @@ function renderRecords() {
     hint.className = "panel-description";
     hint.textContent = "按开始月份查看，每次记录一条；结束日期可以稍后补充。旧生理期事项也收在这里，请编辑核对开始日期。";
     recordList.append(hint);
+    const writeLetter = document.createElement("button");
+    writeLetter.type = "button"; writeLetter.className = "secondary-button";
+    writeLetter.textContent = "此刻想被关心？写封心情来信";
+    writeLetter.addEventListener("click", () => openEditor("feeling"));
+    recordList.append(writeLetter);
   }
 
   const photoRecords = visibleRecords.filter((record) => getRecordPhotos(record.payload).length);
@@ -766,6 +788,7 @@ function startEditing(record) {
 }
 
 function getRecordTitle(record) {
+  if (getRecordKind(record) === "feeling") return `此刻${record.payload.mood || "的心情"} · 一封心情来信`;
   if (getRecordKind(record) === "period") return record.payload.item || "这一次生理期";
   if (["timeline", "date", "anniversary", "memory", "photo"].includes(record.kind)) return record.payload.title;
   if (record.kind === "preference") return record.payload.item;

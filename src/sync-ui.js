@@ -1,5 +1,5 @@
 let clientPromise;
-const client = () => clientPromise ||= import("./cloud.js?v=12");
+const client = () => clientPromise ||= import("./cloud.js?v=13");
 export function setupSync({ getLocal, onRecords, isBusy }) {
   let active = false;
   let state = { user: null, space: null };

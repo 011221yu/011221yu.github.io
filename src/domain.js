@@ -12,6 +12,7 @@ export const recordKinds = Object.freeze([
 export const modules = Object.freeze([
   { kind: "timeline", icon: "↗", title: "恋爱时间轴", description: "收藏第一次与重要片段" },
   { kind: "daily", icon: "☀", title: "每日生活", description: "三餐、照片、心情和小事" },
+  { kind: "feeling", recordKind: "daily", icon: "♡", title: "心情来信", description: "留给自己，也可以说给对方听" },
   { kind: "preference", icon: "♡", title: "特别事项", description: "喜好、身体状况与需要留意的事" },
   { kind: "period", icon: "◇", title: "生理期", description: "每次的日期、身体感受与照顾事项" },
   { kind: "photo", icon: "▧", title: "照片记录", description: "把一组照片和背后的故事收藏起来" },
@@ -53,11 +54,12 @@ export function getRecordPhotos(payload) {
 
 // Legacy entries are grouped without rewriting the user's stored records.
 export function getRecordKind(record) {
+  if (record.kind === "daily" && record.payload.journalType === "feeling") return "feeling";
   return record.kind === "preference" && record.payload.category === "生理期" ? "period" : record.kind;
 }
 
 export function canPublishKind(kind) {
-  return recordKinds.includes(kind) && !["preference", "period"].includes(kind);
+  return kind === "feeling" || recordKinds.includes(kind) && !["preference", "period"].includes(kind);
 }
 
 export function normalizeVisibility(kind, requested = "private") {
@@ -111,7 +113,7 @@ export function createMemorySummary(records, { dateFrom = "", dateTo = "" } = {}
   });
   if (sourceRecords.length === 0) throw new RangeError("这个时间范围内还没有可总结的记录。");
 
-  const labels = { timeline: "重要时刻", daily: "日常", preference: "特别事项", period: "生理期", photo: "照片记录", date: "约会", anniversary: "纪念日" };
+  const labels = { timeline: "重要时刻", daily: "日常", feeling: "心情来信", preference: "特别事项", period: "生理期", photo: "照片记录", date: "约会", anniversary: "纪念日" };
   const counts = new Map();
   const moods = new Map();
   let photoCount = 0;
