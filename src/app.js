@@ -552,7 +552,15 @@ function renderRecords() {
 
   if (albumView) {
     let photoCount = 0;
+    let previousMonth;
     for (const record of photoRecords) {
+      const month = getRecordDate(record).slice(0, 7);
+      if (month !== previousMonth) {
+        const heading = document.createElement("div");
+        heading.className = "album-month";
+        heading.textContent = `${month.slice(0, 4)}年 ${Number(month.slice(5, 7))}月`;
+        recordList.append(heading); previousMonth = month;
+      }
       getRecordPhotos(record.payload).filter((photo) => photo instanceof Blob || photo.cloud).forEach((photo, index) => {
         const item = document.createElement("article");
         item.className = "album-item";
@@ -575,14 +583,15 @@ function renderRecords() {
   let previousDate;
   for (const record of visibleRecords) {
     const date = getRecordDate(record);
-    const group = selectedKind === "period" ? date.slice(0, 7) : date;
+    const groupByMonth = ["period", "photo"].includes(selectedKind);
+    const group = groupByMonth ? date.slice(0, 7) : date;
     if (group !== previousDate) {
       const divider = document.createElement("div");
       divider.className = "date-divider";
       const day = document.createElement("strong");
-      day.textContent = selectedKind === "period" ? `${Number(date.slice(5, 7))}月` : String(Number(date.slice(8, 10)));
+      day.textContent = groupByMonth ? `${Number(date.slice(5, 7))}月` : String(Number(date.slice(8, 10)));
       const month = document.createElement("span");
-      month.textContent = selectedKind === "period" ? `${date.slice(0, 4)}年` : `${Number(date.slice(5, 7))}月 · ${date.slice(0, 4)}`;
+      month.textContent = groupByMonth ? `${date.slice(0, 4)}年` : `${Number(date.slice(5, 7))}月 · ${date.slice(0, 4)}`;
       divider.append(day, month);
       recordList.append(divider);
       previousDate = group;

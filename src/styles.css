@@ -188,6 +188,7 @@ input[type="file"]::file-selector-button { margin-right: 10px; border: 0; border
 .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%); z-index: 30; width: max-content; max-width: calc(100% - 36px); padding: 12px 20px; border-radius: 12px; background: #5e4745f2; color: white; font-size: 12px; line-height: 1.8; box-shadow: 0 8px 24px #3b242426; }
 .sync-bar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; padding: 12px 0 24px; }
 .sync-state { flex: 1; min-width: 120px; color: #775e59; font-size: 12px; }
+.album-month { grid-column: 1 / -1; margin-top: 12px; color: #775e59; font-size: 16px; }
 .sync-dialog [data-connected] > button { margin: 8px 8px 8px 0; }
 .sync-dialog textarea { width: 100%; padding: 12px; border: 1px solid #ded4cc; border-radius: 8px; font: inherit; overflow-wrap: anywhere; }
 .sync-dialog [data-join], .sync-dialog [data-import] { margin-block: 24px; }
