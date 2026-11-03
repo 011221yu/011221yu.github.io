@@ -19,6 +19,7 @@
   if(rest||minutes<=0||date>=examDate)return {mode:rest?'rest':date===examDate?'exam':date>examDate?'after':'unavailable',id:''};
   const completed=Object.entries(records).filter(([,a])=>a.done&&a.completedOn===date);
   if(completed.length)return {mode:'done',id:completed[0][0]};
+  if(minutes>=100&&date<addDays(examDate,-2)){const writing=questions.filter(q=>q.type==='作文'),pending=writing.find(q=>records[q.id]?.draft?.trim()&&!records[q.id]?.done),fresh=writing.find(q=>!records[q.id]?.done),q=pending||fresh||writing[0];return {mode:pending?'continue':fresh?'new':q?'review':'custom',id:q?.id||'',type:'作文'}}
   const unfinished=questions.find(q=>records[q.id]?.draft?.trim()&&!records[q.id]?.done);
   if(unfinished)return {mode:'continue',id:unfinished.id};
   if(date>=addDays(examDate,-2))return {mode:'light',id:questions.find(q=>records[q.id]?.done&&records[q.id]?.note)?.id||''};

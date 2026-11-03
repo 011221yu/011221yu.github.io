@@ -12,7 +12,7 @@
   const h=one('#'+id+'>article.card');if(!h||h.dataset.studyHeader)return;h.dataset.studyHeader='1';h.classList.add('study-header');const toolbar=one(':scope>.gd-toolbar',h);if(!toolbar)return;
   const ps=all(':scope>p',h),extra=[];
   if(id==='essay'){
-   if(ps[0]){const original=ps[0].cloneNode(true);extra.push(original);ps[0].textContent=GongkaoEssay.lessons.length+'个学习单元 · 12个核心主题 · 9道配对题＋2道原创作文'}
+   if(ps[0]){const original=ps[0].cloneNode(true);extra.push(original);ps[0].textContent=GongkaoEssay.lessons.length+'个学习单元 · 12组段落练笔 · 本机'+(essayPack?.questions.length||0)+'道原书题＋2道原创作文'}
    extra.push(...ps.slice(1));
   }else if(id==='national')extra.push(...ps.slice(1),one(':scope>.nat-steps',h));
   else if(id==='idioms')extra.push(...ps.slice(2));
