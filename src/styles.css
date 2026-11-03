@@ -273,7 +273,9 @@ noscript { padding: 24px; display: block; text-align: center; color: #b34a59; }
   .form-panel { padding: 18px 22px 24px; } .form-fields { gap: 16px; }
   .field, .field small { font-size: 11px; }
   .field input, .field select, .field textarea, #entry-kind { font-size: 16px; }
-  .form-actions { position: sticky; bottom: 0; background: #fffcf8; padding-block: 10px; margin-bottom: -10px; }
+  .form-actions { position: sticky; bottom: 0; flex-wrap: wrap; background: #fffcf8; padding-block: 10px; margin-bottom: -10px; }
+  .form-actions > button { flex: 1 1 120px; min-height: 46px; padding-inline: 12px; white-space: nowrap; }
+  .form-actions > #cancel-edit { flex-basis: 100%; min-height: 36px; }
   .toast { bottom: calc(85px + env(safe-area-inset-bottom)); }
   footer { font-size: 7px; letter-spacing: 1px; }
   .photo-dialog { border-radius: 16px; margin: auto; }

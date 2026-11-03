@@ -11,7 +11,7 @@ import {
   matchesRecordSearch,
   modules,
   updateRecord,
-} from "./domain.js?v=13";
+} from "./domain.js?v=14";
 import {
   addRecord,
   createBackup,
@@ -19,8 +19,8 @@ import {
   removeRecord,
   restoreBackup,
   validatePhotoFile,
-} from "./storage.js?v=13";
-import { setupSync } from "./sync-ui.js?v=13";
+} from "./storage.js?v=14";
+import { setupSync } from "./sync-ui.js?v=14";
 
 const grid = document.querySelector("#module-grid");
 const workspace = document.querySelector("#workspace");
