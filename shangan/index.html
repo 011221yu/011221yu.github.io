@@ -26,6 +26,7 @@
   <style>
     .practice-toolbar{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap}.practice-toolbar .field{width:auto;min-width:150px}.question-card{margin-top:18px}.question-stem{font-size:18px;line-height:1.85;margin:18px 0}.option-list{display:grid;gap:10px}.option-btn{display:grid;grid-template-columns:34px 1fr;gap:10px;align-items:start;width:100%;padding:14px;text-align:left;border:1px solid var(--line);border-radius:14px;background:white;color:var(--ink);cursor:pointer}.option-btn:hover{border-color:var(--green);background:var(--mint2)}.option-btn.correct{border-color:var(--green);background:var(--mint)}.option-btn.wrong{border-color:var(--red);background:#fff0ed}.option-letter{font-weight:850;color:var(--green)}.answer-box{margin-top:16px;padding:18px;border-radius:16px;background:var(--mint2);line-height:1.8}.answer-box.wrong{background:#fff1ed}.practice-meta{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.profile-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.profile-grid label{font-size:12px;color:var(--muted)}.profile-grid .field{margin-top:5px}.job-card{padding:17px;border:1px solid var(--line);border-radius:16px;background:var(--paper);margin-top:10px}.job-head{display:flex;gap:12px;justify-content:space-between;align-items:start}.job-head h3{margin:5px 0}.job-checks{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}.check-pass{background:var(--mint2);color:#397258}.check-fail{background:#fff0ed;color:#b14f48}.check-uncertain{background:#fff4e8;color:#99612f}.settings-grid,.record-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}.settings-grid label,.record-grid label{font-size:12px;color:var(--muted)}.settings-grid .field,.record-grid .field{margin-top:5px}.catalog-row{display:grid;grid-template-columns:minmax(130px,1fr) 2fr auto;gap:12px;align-items:center;padding:10px 0;border-bottom:1px dashed var(--line)}.catalog-row:last-child{border-bottom:0}.notice{padding:14px 16px;border-radius:14px;background:#fff4e8;color:#8d6038;line-height:1.7}.log-row{padding:15px 0;border-bottom:1px solid var(--line)}.log-row:last-child{border:0}.log-meta{display:flex;gap:7px;flex-wrap:wrap;margin-top:8px}@media(max-width:720px){.settings-grid,.record-grid{grid-template-columns:1fr 1fr}.catalog-row{grid-template-columns:1fr auto}.catalog-row .progress{grid-column:1/-1}}@media(max-width:520px){.profile-grid,.settings-grid,.record-grid{grid-template-columns:1fr}.job-head{display:block}.job-head>.tag{display:inline-block;margin-top:8px}}
   </style>
+<link rel="stylesheet" href="study-layout.css">
 </head>
 <body>
 <div class="overlay" id="overlay"></div>
@@ -388,5 +389,6 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(
 <script src="sync-engine.js"></script>
 <script src="cloud-migrate.js"></script>
 <script src="cloud-sync.js"></script>
+<script src="study-layout.js"></script>
 </body>
 </html>
