@@ -185,28 +185,21 @@
   for(let d=date;d<=deadline;d=add(d,1))if(!rests.has(d))studyDays++;
   return {deadline,studyDays,remaining,quota:remaining?Math.ceil(remaining/Math.max(1,studyDays)/round)*round:0};
  }
- function plan({date,days={},done={},reviews={},rest=false,examDate='2026-12-06',restDates=[]}){
-  if(rest)return {newIds:[],reviewKeys:[],rest:true};
-  if(days[date]?.version===2)return {...days[date],newIds:days[date].newIds.filter(id=>byId.has(id)),reviewKeys:days[date].reviewKeys.filter(k=>byId.has(k.split(':')[0]))};
-  const first=new Map();
-  for(const day of Object.keys(done).filter(d=>d<date).sort())for(const id of done[day]||[])if(byId.has(id)&&!first.has(id))first.set(id,day);
-  const due=[];
-  for(const [id,day] of first){
-   for(const offset of offsets){
-    const key=id+':'+offset,at=stamp(day)+offset*86400000;
-    if(reviews[key]?.remembered)continue;
-    if(at<=stamp(date))due.push({key,at});
-    break; // 一个知识点每次只复习一个阶段。
-   }
-  }
+ function plan({date,days={},done={},reviews={},rest=false,examDate='2026-12-06',restDates=[],minutes=25}){
+  minutes=Math.max(0,Math.floor(minutes));
+  if(rest||!minutes)return {version:3,examDate,minutes,estimatedMinutes:0,newIds:[],reviewKeys:[],rest:true,deferredReviews:0};
+  const cached=days[date];if(cached?.version===3&&cached.minutes===minutes&&cached.examDate===examDate)return cached;
+  const first=new Map();for(const day of Object.keys(done).filter(d=>d<date).sort())for(const id of done[day]||[])if(byId.has(id)&&!first.has(id))first.set(id,day);
+  const due=[];for(const [id,day]of first)for(const offset of offsets){const key=id+':'+offset,at=stamp(day)+offset*86400000;if(reviews[key]?.remembered)continue;if(at<=stamp(date)&&reviews[key]?.date!==date)due.push({key,at});break}
   due.sort((a,b)=>a.at-b.at||a.key.localeCompare(b.key));
-  const carried=Object.keys(days).filter(d=>d<date).sort().flatMap(d=>days[d].newIds||[]);
-  const available=[...new Set([...carried,...cards.map(c=>c.id)])].filter(id=>byId.has(id)&&!first.has(id));
-  const learnedToday=(done[date]||[]).filter(id=>byId.has(id));
-  const schedule=pace({date,examDate,restDates,remaining:available.length});
-  const pinned=days[date]?.newIds?.filter(id=>byId.has(id))||[];
-  const newIds=[...new Set([...learnedToday,...pinned,...available])].slice(0,Math.max(schedule.quota,learnedToday.length,pinned.length));
-  return {version:2,...schedule,newIds,reviewKeys:due.slice(0,8).map(d=>d.key)};
+  const completedReviews=(cached?.reviewKeys||[]).filter(k=>reviews[k]?.date===date&&byId.has(k.split(':')[0]));
+  const carried=Object.keys(days).filter(d=>d<date).sort().flatMap(d=>days[d].newIds||[]),learnedToday=(done[date]||[]).filter(id=>byId.has(id));
+  const available=[...new Set([...(cached?.newIds||[]),...carried,...cards.map(c=>c.id)])].filter(id=>byId.has(id)&&!first.has(id)&&!learnedToday.includes(id));
+  const schedule=pace({date,examDate,restDates,remaining:available.length+learnedToday.length}),quota=Math.max(0,schedule.quota-learnedToday.length),reserve=Math.min(quota,available.length,Math.floor(minutes/6))*6;
+  const reviewCount=Math.min(8,Math.floor((minutes-reserve)/2),due.length),selected=due.slice(0,reviewCount).map(x=>x.key);let used=selected.length*2;
+  const fresh=available.slice(0,Math.min(quota,Math.floor((minutes-used)/6)));used+=fresh.length*6;
+  return {version:3,examDate,minutes,estimatedMinutes:used,...schedule,newIds:[...learnedToday,...fresh],reviewKeys:[...new Set([...completedReviews,...selected])],deferredReviews:due.length-selected.length,unassignedNew:Math.max(0,available.length-fresh.length)};
  }
+
  root.GongkaoReading={cards,byId,plan,pace,version:'curated-20261102',sourcePolicy:'仅正文知识卡进入每日任务；目录、封面及练习题页不参与排课。'};
 })(typeof globalThis!=='undefined'?globalThis:this);
