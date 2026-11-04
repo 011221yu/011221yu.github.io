@@ -6,11 +6,11 @@
   report20:'https://app.www.gov.cn/govdata/gov/202210/25/493662/article.html',
   method:'https://www.ndrc.gov.cn/fggz/gbzj/xxyd/202302/t20230224_1349575_ext.html',
   suggestion:'https://www.nopss.gov.cn/n1/2025/1028/c432288-40591631.html',
-  outline:'https://www.moe.gov.cn/jyb_xwfb/xw_zt/moe_357/2026/2026_zt03/yw/202603/t20260314_1430877.html',
+  outline:'https://www.gwytb.gov.cn/topone/202603/t20260314_12755559.htm',
   indicators:'https://www.ndrc.gov.cn/fzggw/wld/zsj/zyhd/202605/t20260501_1405047.html',
   report26:'https://www.locpg.gov.cn/20260313/affa9b8032324920925b409e6a6ef154/c.html',
   policy26:'https://www.ln.gov.cn/web/qmzx/2026qglh/bgjd/2026030609051740805/index.shtml',
-  agriculture:'https://www.mohurd.gov.cn/gongkai/fdzdgknr/zgzygwywj/art/2026/art_86ba827ca3234014be9e89cfa13ec1b5.html',
+  agriculture:'https://www.miit.gov.cn/xwfb/szyw/art/2026/art_0a88f403f18248909759917cef069a7b.html',
   reform:'https://www.mofcom.gov.cn/xwfb/ldrhd/art/2024/art_ec1f616bbfba49d7bd9baf70152f9caf.html',
   market:'https://www.miit.gov.cn/xwdt/szyw/art/2022/art_59c550172b79453fa0aa33bcca1bf97a.html'
  };
