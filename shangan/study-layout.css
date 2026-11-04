@@ -14,3 +14,6 @@ html{background:#f3f5f8;scrollbar-color:#bdc9d8 #f3f5f8;scroll-padding-top:20px}
 
 /* Keep the daily summary legible on its existing white card. */
 .hero{color:var(--ink)!important}.hero p{color:var(--muted)!important}.hero-stat{background:#edf3fb!important;border-color:var(--line)!important;color:#345b86!important}.foundation-header h2{display:block!important;margin-top:12px}.foundation-header .gd-toolbar{margin-top:16px}
+
+/* Ordered launch points for the deadline plan. */
+.sprint-task{grid-template-columns:32px minmax(0,1fr)!important}.sprint-task details{font-size:13px;color:var(--muted);margin:8px 0}.sprint-task .btn{margin-top:10px}.sprint-memory{padding:20px 0;border-bottom:1px solid var(--line);margin-bottom:18px}.sprint-memory>details{font-size:13px;line-height:1.8;margin-top:12px}.sprint-timeline{margin-top:18px}.sprint-timeline>summary{cursor:pointer;font-weight:700}.sprint-timeline .schedule-row{grid-template-columns:115px minmax(0,1fr);font-size:13px}.sprint-course-settings{margin-bottom:18px}.sprint-course-settings .nat-table{min-width:0!important;font-size:13px}.sprint-course-settings details{line-height:1.8}.sprint-course-settings input,.sprint-course-settings select{min-width:0;max-width:100%}
