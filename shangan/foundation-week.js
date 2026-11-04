@@ -1,7 +1,7 @@
 /* A slower starting point, using existing plans and records. No completed logs are invented. */
 (function(root){
  'use strict';
- const START='2026-11-04',VERSION='deadline-sprint-20261104',addDays=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
+ const START='2026-11-04',VERSION='deadline-sprint-20261104-v2',addDays=(d,n)=>new Date(Date.parse(d+'T00:00:00Z')+n*86400000).toISOString().slice(0,10);
  const units=[
   {id:'read-question',title:'认识申论与审题',method:'audit',goal:'看懂题目要你做什么，先不写答案。',steps:['在粉笔听申论入门或审题课，约40—60分钟；超时就分段续听。','读下面的方法和示例，圈出对象、范围、任务、字数四项。','口头说出题目只问什么、没有问什么。'],recall:'这道题问问题，还是问做法？答案要依据哪段材料？'},
   {id:'find-points',title:'从材料里找到要点',method:'cause',goal:'分清问题、原因、影响和已有做法。',steps:['听对应的材料阅读基础方法，不额外追第二节课。','把示例中不同维度分别圈出来；不会概括也可以先保留原词。','口头解释每句话属于哪个维度。'],recall:'哪句话是原因，哪句话是问题，哪句话是结果？'},
@@ -42,7 +42,7 @@
   const order=['判断推理','资料分析','判断推理','数量关系','科学推理'];let cursor=Math.max(0,info.rows.reduce((n,r)=>n+r.done,0)-4);
   for(let i=0;i<count;i++){let picked='';for(let j=0;j<order.length;j++){const module=order[(cursor+j)%order.length],r=info.rows.find(r=>r.module===module);if(r.done+(used[module]||0)<r.target){picked=module;cursor+=j+1;break}}if(!picked)break;used[picked]=(used[picked]||0)+1;assignments.push({module:picked,ordinal:info.rows.find(r=>r.module===picked).done+used[picked]})}
   const actualCount=assignments.length,courseMinutes=actualCount?actualCount*info.unitMinutes:Math.max(0,xing-reserve),course=Object.keys(used).map(m=>m+used[m]+'节').join('＋');
-  put('learning-primary',actualCount?'重点课｜'+course:'重点方法与随堂题｜分段推进',courseMinutes,`按单课原长约${info.cfg.rawMinutes}分钟、${info.cfg.speed}倍速，另留${info.cfg.exercise}分钟练习估算；实际目录按粉笔未完成内容接续，讲义下载不算课。每节听后立即做5—10道同类题。完成后登记实际节数与用时；课太长就分段，不挤占饭点。`,'重点行测','粉笔',{courseUnits:assignments,units:actualCount});
+  put('learning-primary',actualCount?'重点课｜'+course:'重点方法与随堂题｜分段推进',courseMinutes,`按单课原长约${info.cfg.rawMinutes}分钟、${info.cfg.speed}倍速，另留${info.cfg.exercise}分钟练习估算；实际目录按粉笔未完成内容接续，讲义下载不算课。每节听后立即做5—10道同类题。完成后登记实际节数与用时；课太长就分段，不挤占饭点。`,'重点行测','粉笔',{courseUnits:assignments,units:actualCount,id:`gd:${date}:learning-primary:${VERSION}`} );
   const memory=xing-courseMinutes,weights=total>=400?[16,24,18,10]:[8,12,8,6],sum=weights.reduce((a,b)=>a+b,0);let left=memory;
   weights.forEach((w,i)=>{const n=i===3?left:Math.floor(memory*w/sum);left-=n;
    if(i===0)put('idioms','成语｜新学与到期回忆',n,'按本块时长回忆、辨析，不整篇抄写。','言语理解');
