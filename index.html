@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#faf8f5" />
+    <meta name="theme-color" content="#f7f8f2" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Love OS" />
@@ -11,7 +11,8 @@
     <title>Love OS · 我们的生活手账</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/assets/icon.svg" type="image/svg+xml" />
-    <link rel="stylesheet" href="/src/styles.css?v=14" />
+    <link rel="stylesheet" href="/src/styles.css?v=16" />
+    <link rel="stylesheet" href="/src/theme.css?v=16" />
   </head>
   <body>
     <svg class="icon-library" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -26,18 +27,22 @@
       <symbol id="icon-close" viewBox="0 0 24 24"><path d="m6 6 12 12M6 18 18 6"/></symbol>
       <symbol id="icon-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
       <symbol id="icon-backup" viewBox="0 0 24 24"><path d="M5 9a8 8 0 1 1-1 8M3 4v6h6M12 7v6l4 2"/></symbol>
+      <symbol id="icon-home" viewBox="0 0 24 24"><path d="m3 11 9-8 9 8M5 10v10h14V10M9 20v-6h6v6"/></symbol>
+      <symbol id="icon-lock" viewBox="0 0 24 24"><rect x="5" y="10" width="14" height="11" rx="3"/><path d="M8 10V7a4 4 0 0 1 8 0v3m-4 4v3"/></symbol>
+      <symbol id="icon-mail" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="3"/><path d="m3 7 9 6 9-6"/></symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></symbol>
     </svg>
     <a class="skip-link" href="#workspace">跳到记录</a>
     <aside class="sidebar" aria-label="主要导航">
-      <a class="brand" href="/" aria-label="Love OS 首页"><span class="brand-mark">♡</span><span>Love OS<small>两个人的事，一个人珍藏</small></span></a>
-      <p class="nav-caption">我们的故事</p>
+      <a class="brand" href="./" aria-label="Love OS 首页"><span class="brand-mark"><svg class="icon"><use href="#icon-heart"/></svg></span><span>Love OS<small>把日子，慢慢收藏。</small></span></a>
       <nav id="module-grid" class="module-grid" aria-label="记录分类"></nav>
       <button class="sidebar-backup" type="button" data-backup><svg class="icon"><use href="#icon-backup"/></svg>备份与恢复</button>
-      <div class="sidebar-note"><span>♡</span><p>平凡的小事，<br />也是我们的独家记忆。</p><small>慢慢记录，不必每天打卡。</small></div>
+      <div class="sidebar-note"><p>平凡的小事，<br />也是我们的独家记忆。</p><small>慢慢记录，不必每天打卡。</small></div>
     </aside>
     <main class="shell">
       <header class="page-top">
-        <div><p id="today-label" class="eyebrow"></p><h1>我们的生活手账<span>。</span></h1><p class="subtitle">把小事收藏，让回忆有迹可循。</p></div>
+        <div class="home-topline"><a class="mobile-brand" href="./">Love OS</a><button id="home-connect" class="connection-button" type="button"><svg class="icon"><use href="#icon-lock"/></svg><span id="home-account-state">登录两人空间</span></button></div>
+        <div class="page-heading"><p id="today-label" class="eyebrow"></p><h1>把日子，慢慢收藏。</h1><p class="subtitle">平凡的小事，也值得记住。</p></div>
         <button id="new-entry" class="primary-button compose-button" type="button"><svg class="icon"><use href="#icon-plus"/></svg>记一笔</button>
       </header>
       <section class="overview" aria-label="我们的此刻">
@@ -45,66 +50,70 @@
           <div class="card-topline"><span><svg class="icon"><use href="#icon-heart"/></svg>在一起的每一天</span><span class="card-edition">OUR LITTLE DAYS</span></div>
           <div class="days-number"><strong id="days-together">—</strong><span>天</span></div>
           <p id="days-together-note">从一个值得记住的日子开始</p>
-          <button type="button" class="text-button" data-create="anniversary">记录恋爱纪念日 <span aria-hidden="true">↗</span></button>
-          <div class="orbit-art" aria-hidden="true"><i></i><i></i><span>♡</span><small>YOU & ME</small></div>
+          <button id="set-start-date" type="button" class="text-button" data-create="anniversary">设置我们的开始日期 <span aria-hidden="true">↗</span></button>
+          <div class="orbit-art" aria-hidden="true"><i></i><i></i><svg class="icon"><use href="#icon-heart"/></svg></div>
         </article>
         <button class="anniversary-card" type="button" data-browse="anniversary">
           <span class="card-topline"><span><svg class="icon"><use href="#icon-calendar"/></svg>下一份期待</span><span aria-hidden="true">↗</span></span>
-          <strong id="next-anniversary">—</strong><span id="next-anniversary-note">还没有纪念日</span><span class="anniversary-caption">重要的日子，认真记得。</span>
+          <strong id="next-anniversary">—</strong><span id="next-anniversary-note">添加一个值得期待的日子</span><span class="anniversary-caption">重要的日子，认真记得。</span>
         </button>
       </section>
-      <section class="little-stats" aria-label="记录概览">
-        <span><i class="stat-dot rose"></i>本月留下 <strong id="month-records">0</strong> 条回忆</span>
-        <span><i class="stat-dot sage"></i><strong id="pending-dates">0</strong> 个约会等着实现</span>
-        <span><svg class="icon"><use href="#icon-photo"/></svg><strong id="photo-total">0</strong> 张照片被珍藏</span>
-      </section>
       <section id="home-panel" class="home-panel" aria-label="首页入口">
-        <article class="home-account"><div><p class="eyebrow">OUR PRIVATE CORNER</p><h2>先回到我们的空间</h2><p id="home-account-state">登录自己的账号，连接彼此的生活。</p></div><button id="home-connect" class="primary-button" type="button">登录／账号管理</button></article>
-        <article class="home-feeling" aria-labelledby="feeling-home-title"><div><p class="eyebrow">A LETTER FROM THE HEART</p><h2 id="feeling-home-title">心情来信</h2><p>今天的心情，想说给谁听？<br />可以留给自己，也可以让对方知道怎样陪伴你。</p></div><div class="feeling-home-actions"><button class="primary-button" type="button" data-create="feeling">写一封来信</button><button class="text-button" type="button" data-browse="feeling">我的心情来信 ↗</button></div></article>
+        <article class="home-feeling" aria-labelledby="feeling-home-title"><div><h2 id="feeling-home-title"><svg class="icon"><use href="#icon-mail"/></svg>心情来信</h2><p>今天，希望怎样被关心？</p></div><button class="icon-button" type="button" data-create="feeling" aria-label="写一封心情来信"><svg class="icon"><use href="#icon-arrow"/></svg></button></article>
+        <h2 class="shortcuts-title">随手记一笔<span>为小事留个位置</span></h2>
         <div class="home-shortcuts">
-          <button type="button" data-create="daily"><svg class="icon"><use href="#icon-sun"/></svg><strong>记下今天</strong><span>一顿饭，一件小事</span></button>
-          <button type="button" data-create="photo"><svg class="icon"><use href="#icon-photo"/></svg><strong>留一组照片</strong><span>把画面和故事放在一起</span></button>
-          <button type="button" data-browse="feed"><svg class="icon"><use href="#icon-heart"/></svg><strong>共同动态</strong><span>只看彼此发布的生活</span></button>
-          <button type="button" data-browse="preference"><svg class="icon"><use href="#icon-book"/></svg><strong>悄悄记住</strong><span>留给自己，认真关心</span></button>
+          <button type="button" data-create="daily"><svg class="icon"><use href="#icon-sun"/></svg><strong>每日生活</strong></button>
+          <button type="button" data-create="photo"><svg class="icon"><use href="#icon-photo"/></svg><strong>照片记录</strong></button>
+          <button type="button" data-browse="date"><svg class="icon"><use href="#icon-pin"/></svg><strong>约会清单</strong></button>
         </div>
         <p class="home-footnote">私藏的记录，在对应模块里。发布的生活，在共同动态里。</p>
       </section>
       <section id="workspace" hidden class="workspace" aria-labelledby="records-title">
-        <div class="records-heading"><div><p class="eyebrow">LITTLE MOMENTS, BIG MEMORIES</p><h2 id="records-title">留住的小事</h2></div><span id="record-count" class="record-count"></span></div>
+        <div class="records-heading"><h2 id="records-title" class="visually-hidden">留住的小事</h2><span id="record-count" class="record-count"></span></div>
+        <div id="feed-filters" class="feed-filters" role="group" aria-label="共同动态分类" hidden><button type="button" data-feed-kind="all" aria-pressed="true">全部</button><button type="button" data-feed-kind="daily" aria-pressed="false">生活</button><button type="button" data-feed-kind="photo" aria-pressed="false">照片</button><button type="button" data-feed-kind="feeling" aria-pressed="false">心情</button><button type="button" data-feed-kind="timeline" aria-pressed="false">时刻</button><button type="button" data-feed-kind="date" aria-pressed="false">约会</button><button type="button" data-feed-kind="anniversary" aria-pressed="false">纪念日</button><button type="button" data-feed-kind="memory" aria-pressed="false">回忆</button></div>
+        <div id="album-scope" class="view-switch album-scope" role="group" aria-label="相册可见范围" hidden><button type="button" data-album-scope="shared" aria-pressed="false">两人可见</button><button type="button" data-album-scope="private" aria-pressed="true">仅自己</button></div>
         <div class="journal-toolbar">
           <div class="view-switch" role="group" aria-label="浏览方式"><button id="view-journal" type="button" aria-pressed="true">手账</button><button id="view-album" type="button" aria-pressed="false">相册</button></div>
           <label class="search-field" for="record-search"><span class="visually-hidden">搜索记录</span><input id="record-search" type="search" placeholder="找找某个小瞬间…" autocomplete="off" /></label>
         </div>
         <div id="record-list" class="record-list"></div>
       </section>
+      <section id="more-panel" class="more-panel" aria-label="我的角落" hidden>
+        <button type="button" class="profile-card" data-account-open><span class="profile-avatar"><svg class="icon"><use href="#icon-heart"/></svg></span><span><strong>我们的两人空间</strong><small id="more-account-state">登录自己的账号，连接彼此的生活</small></span><svg class="icon"><use href="#icon-arrow"/></svg></button>
+        <div class="more-section-heading"><h2>我的手账</h2><button class="text-button" type="button" data-browse="all">查看全部</button></div><div id="my-notebooks" class="notebook-grid"></div>
+        <div class="more-section-heading"><h2>悄悄关心</h2><span><svg class="icon"><use href="#icon-lock"/></svg>始终仅自己</span></div><div class="private-notebooks"><button type="button" data-browse="preference"><svg class="icon"><use href="#icon-book"/></svg><span><strong>特别事项</strong><small>习惯、偏好与需要留意的事</small></span><svg class="icon"><use href="#icon-arrow"/></svg></button><button type="button" data-browse="period"><svg class="icon"><use href="#icon-calendar"/></svg><span><strong>生理期</strong><small>日期、身体感受与照顾事项</small></span><svg class="icon"><use href="#icon-arrow"/></svg></button></div>
+        <div class="more-section-heading"><h2>账号与数据</h2></div><div id="account-controls"></div>
+        <section class="little-stats" aria-label="当前手账概览"><span>本月 <strong id="month-records">0</strong> 条记录</span><span><strong id="pending-dates">0</strong> 个约会待实现</span><span><strong id="photo-total">0</strong> 张照片</span></section>
       <details id="backup-panel" class="backup-panel">
         <summary><span><svg class="icon"><use href="#icon-backup"/></svg>给回忆留一份备份</span><span aria-hidden="true">＋</span></summary>
-        <p class="panel-description">文字和照片只保存在当前浏览器。导出备份，换设备时可以恢复。</p>
+        <p class="panel-description">备份包含当前手账的文字和照片，导出时使用独立密码加密。兼容恢复旧版备份。</p>
         <div class="backup-controls"><button id="export-backup" class="secondary-button" type="button">导出备份</button><label class="secondary-button file-button" for="import-backup">恢复备份</label><input id="import-backup" class="visually-hidden" type="file" accept="application/json,.json" /></div>
         <p id="backup-status" class="backup-status" role="status" aria-live="polite"></p>
         <p class="device-note">iPhone：Safari → 分享 → 添加到主屏幕，随时回来记一笔。</p>
       </details>
+      </section>
       <footer>MADE FOR OUR ORDINARY, LOVELY DAYS <span>♡</span><small>Love OS · 记录留在本机，请定期备份</small></footer>
     </main>
     <nav class="bottom-nav" aria-label="手机快捷导航">
-      <button type="button" data-browse="home"><svg class="icon"><use href="#icon-book"/></svg><span>首页</span></button>
+      <button type="button" data-browse="home"><svg class="icon"><use href="#icon-home"/></svg><span>首页</span></button>
       <button type="button" data-browse="feed"><svg class="icon"><use href="#icon-heart"/></svg><span>动态</span></button>
       <button id="mobile-compose" class="mobile-compose" type="button" aria-label="记一笔"><svg class="icon"><use href="#icon-plus"/></svg></button>
-      <button type="button" data-browse="date"><svg class="icon"><use href="#icon-pin"/></svg><span>约会</span></button>
-      <button id="open-more" type="button"><svg class="icon"><use href="#icon-more"/></svg><span>更多</span></button>
+      <button type="button" data-browse="album"><svg class="icon"><use href="#icon-photo"/></svg><span>相册</span></button>
+      <button type="button" data-browse="more"><svg class="icon"><use href="#icon-more"/></svg><span>更多</span></button>
     </nav>
     <dialog id="editor" class="editor-dialog" aria-labelledby="form-title">
       <div class="form-panel"><div class="editor-top"><span class="eyebrow">留住这一刻</span><button id="close-editor" class="icon-button" type="button" aria-label="关闭编辑"><svg class="icon"><use href="#icon-close"/></svg></button></div>
         <label class="kind-picker" for="entry-kind">记在哪一本<select id="entry-kind"><option value="daily">每日生活</option><option value="feeling">心情来信</option><option value="timeline">恋爱时间轴</option><option value="preference">特别事项</option><option value="period">生理期</option><option value="photo">照片记录</option><option value="date">约会清单</option><option value="anniversary">纪念日</option><option value="memory">回忆总结</option></select></label>
         <h2 id="form-title"></h2><p id="form-description" class="panel-description"></p>
-        <form id="record-form"><div id="form-fields" class="form-fields"></div><div class="form-actions"><button class="secondary-button" type="submit" value="private">保存给自己</button><button id="publish-record" class="primary-button" type="submit" value="shared" hidden>发布到共同动态</button><button id="cancel-edit" class="secondary-button" type="button" hidden>取消编辑</button></div></form>
+        <form id="record-form"><div id="form-fields" class="form-fields"></div><div class="form-actions"><label id="visibility-control" class="visibility-control" for="record-visibility"><span><svg class="icon"><use href="#icon-lock"/></svg>保存给谁看</span><select id="record-visibility" name="visibility"><option value="private">仅自己</option><option value="shared">两人可见</option></select></label><button id="save-record" class="primary-button" type="submit">保存给自己</button><button id="cancel-edit" class="secondary-button" type="button" hidden>取消编辑</button></div></form>
         <p id="status-message" class="status-message" role="status" aria-live="polite"></p>
       </div>
     </dialog>
-    <dialog id="more-menu" class="more-dialog" aria-labelledby="more-title"><div class="editor-top"><h2 id="more-title">还有这些小角落</h2><button class="icon-button" type="button" data-close-more aria-label="关闭更多"><svg class="icon"><use href="#icon-close"/></svg></button></div><button type="button" data-browse="timeline">↗ 恋爱时间轴<span>那些值得纪念的第一次</span></button><button type="button" data-browse="daily">☀ 每日生活<span>三餐、心情与日常</span></button><button type="button" data-browse="feeling">心情来信<span>今天的心情，想说给谁听？</span></button><button type="button" data-browse="preference">♡ 特别事项<span>喜好、身体状况与需要留意的事</span></button><button type="button" data-browse="photo">▧ 照片记录<span>把一组照片与故事留住</span></button><button type="button" data-browse="period">◇ 生理期<span>每个月的日期与照顾事项</span></button><button type="button" data-browse="memory">✦ 回忆总结<span>把一段时光整理成文</span></button><button type="button" data-backup>↺ 备份与恢复<span>好好保存文字与照片</span></button></dialog>
-    <dialog id="photo-viewer" class="photo-dialog" aria-labelledby="photo-viewer-title"><div class="viewer-top"><p id="photo-viewer-title"></p><button id="close-photo-viewer" type="button" class="icon-button" aria-label="关闭照片"><svg class="icon"><use href="#icon-close"/></svg></button></div><img id="viewer-image" alt="" /><p id="viewer-error" hidden>这张照片无法在当前浏览器预览，可下载后查看。</p><div class="viewer-controls"><button id="previous-photo" type="button" aria-label="上一张照片">←</button><span id="viewer-position"></span><a id="download-photo">保存原图</a><button id="next-photo" type="button" aria-label="下一张照片">→</button></div></dialog>
+    <dialog id="compose-menu" class="more-dialog" aria-labelledby="compose-title"><div class="editor-top"><h2 id="compose-title">想记下哪一种小事？</h2><button class="icon-button" type="button" data-close-compose aria-label="关闭记录类型"><svg class="icon"><use href="#icon-close"/></svg></button></div><div id="compose-kinds" class="compose-kinds"></div></dialog>
+    <dialog id="record-detail" class="editor-dialog" aria-labelledby="record-detail-title"><div class="form-panel"><div class="editor-top"><h2 id="record-detail-title">照片里的故事</h2><button class="icon-button" type="button" id="close-record-detail" aria-label="关闭原记录"><svg class="icon"><use href="#icon-close"/></svg></button></div><div id="record-detail-body"></div></div></dialog>
+    <dialog id="photo-viewer" class="photo-dialog" aria-labelledby="photo-viewer-title"><div class="viewer-top"><p id="photo-viewer-title"></p><button id="close-photo-viewer" type="button" class="icon-button" aria-label="关闭照片"><svg class="icon"><use href="#icon-close"/></svg></button></div><img id="viewer-image" alt="" /><p id="viewer-error" hidden>这张照片无法在当前浏览器预览，可下载后查看。</p><div class="viewer-controls"><button id="previous-photo" type="button" aria-label="上一张照片">←</button><span id="viewer-position"></span><a id="download-photo">保存原图</a><button id="next-photo" type="button" aria-label="下一张照片">→</button><button id="open-photo-record" type="button">查看原记录</button></div></dialog>
     <p id="toast" class="toast" role="status" aria-live="polite" hidden></p>
     <noscript>Love OS 需要开启 JavaScript 才能保存记录。</noscript>
-    <script type="module" src="/src/app.js?v=14"></script>
+    <script type="module" src="/src/app.js?v=16"></script>
   </body>
 </html>

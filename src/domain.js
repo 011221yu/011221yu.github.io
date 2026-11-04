@@ -75,6 +75,12 @@ export function getRecordsForView(records, view, { cloud = false, userId = null 
   });
 }
 
+export function getAlbumRecords(records, scope, options = {}) {
+  const source = getRecordsForView(records, scope === "shared" ? "feed" : "all", options);
+  return source.filter(record => getRecordPhotos(record.payload).length > 0
+    && (scope === "shared" || !options.cloud || record.visibility !== "shared"));
+}
+
 export function validatePeriodDates(payload) {
   const isDate = (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value)
     && !Number.isNaN(Date.parse(value)) && new Date(value).toISOString().slice(0, 10) === value;

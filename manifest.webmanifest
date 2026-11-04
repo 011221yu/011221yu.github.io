@@ -1,11 +1,11 @@
 {
   "name": "Love OS",
   "short_name": "Love OS",
-  "description": "只属于你的恋爱生活记录助手",
+  "description": "把日子慢慢收藏，两个人的生活手账",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#faf8f5",
-  "theme_color": "#faf8f5",
+  "background_color": "#f7f8f2",
+  "theme_color": "#f7f8f2",
   "icons": [
     {
       "src": "/assets/icon.svg",
@@ -13,5 +13,6 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
-  ]
+  ],
+  "scope": "/"
 }

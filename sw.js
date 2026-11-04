@@ -1,15 +1,19 @@
-const CACHE_NAME = "love-os-v14-mobile-actions";
+const CACHE_NAME = "love-os-v16-sage-journal";
 const APP_FILES = [
   "/",
   "/index.html",
   "/manifest.webmanifest",
   "/assets/icon.svg",
-  "/src/app.js?v=14",
-  "/src/domain.js?v=14",
-  "/src/storage.js?v=14",
-  "/src/styles.css?v=14",
-  "/src/sync-ui.js?v=14",
-  "/src/cloud.js?v=14",
+  "/src/app.js?v=16",
+  "/src/domain.js?v=16",
+  "/src/storage.js?v=16",
+  "/src/styles.css?v=16",
+  "/src/sync-ui.js?v=16",
+  "/src/cloud.js?v=16",
+  "/src/theme.css?v=16",
+  "/src/backup-ui.js?v=16",
+  "/src/backup-crypto.js?v=16",
+  "/src/session-guard.js?v=16",
 ];
 
 self.addEventListener("install", (event) => {

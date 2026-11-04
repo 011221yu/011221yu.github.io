@@ -1,14 +1,20 @@
 let clientPromise;
-const client = () => clientPromise ||= import("./cloud.js?v=14");
-export function setupSync({ getLocal, onRecords, isBusy }) {
+const client = () => clientPromise ||= import("./cloud.js?v=16");
+import { createIdleGuard, IDLE_TIMEOUT_MS } from "./session-guard.js?v=16";
+export function setupSync({ getLocal, onRecords, isBusy, onAccountLock = () => {} }) {
   let active = false;
   let state = { user: null, space: null };
   let refreshing = false;
+  let generation = 0, ending = false, watching = false, lastWrite = 0;
+  const activityKey = "love-os.session-activity";
+  const legacy = location.hostname === "011221yu.github.io";
+  const cloudEntry = "https://love-os-eager-sailfish-d4go48ch8078469d0.webapps.tcloudbase.com/love-os/";
+  const idle = createIdleGuard({ onExpire: () => { void endSession("闲置 15 分钟，已退出账号。请重新登录。", true); } });
   const bar = document.createElement("section");
   bar.className = "sync-bar";
   bar.setAttribute("aria-label", "记录存放位置");
   bar.innerHTML = '<div class="view-switch"><button type="button" data-mode="local" aria-pressed="true">本机手账</button><button type="button" data-mode="cloud" aria-pressed="false">账号手账</button></div><span class="sync-state" role="status">记录保存在本机</span><button type="button" class="text-button" data-account>连接／管理</button>';
-  document.querySelector(".page-top").after(bar);
+  document.querySelector("#account-controls").append(bar);
   const badge = bar.querySelector(".sync-state");
   const panel = document.createElement("dialog");
   panel.className = "editor-dialog sync-dialog";
@@ -17,14 +23,73 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
   const message = panel.querySelector("[data-message]");
   const connected = panel.querySelector("[data-connected]");
   const loginForm = panel.querySelector("[data-login]");
+  const safetyNote = document.createElement("p");
+  safetyNote.className = "privacy-note";
+  safetyNote.textContent = "账号保护：闲置 15 分钟自动退出。未保存的云端草稿只在当前页面暂存，重新登录同一账号后可继续；刷新页面会失去未保存草稿。";
+  loginForm.before(safetyNote);
+  if (legacy) {
+    safetyNote.textContent = "双人同步已迁移到腾讯云新入口。这个旧网址保留本机记录，请先导出备份，再到新入口恢复。";
+    const link = document.createElement("a"); link.className = "primary-button legacy-cloud-link";
+    link.href = cloudEntry; link.textContent = "打开腾讯云同步入口"; loginForm.before(link);
+  }
   const setMessage = (text, error = false) => { message.textContent = text; message.classList.toggle("is-error", error); };
+  function readActivity() {
+    try {
+      const value = JSON.parse(localStorage.getItem(activityKey));
+      return value?.uid === state.user?.id && Number.isFinite(value.at) && value.at <= Date.now() ? value.at : null;
+    } catch { return null; }
+  }
+  function touchActivity() {
+    if (!state.user || ending) return;
+    idle.touch();
+    if (Date.now() - lastWrite > 5000) {
+      lastWrite = Date.now(); localStorage.setItem(activityKey, JSON.stringify({ uid: state.user.id, at: lastWrite }));
+    }
+  }
+  function armIdle() {
+    if (!state.user) { idle.stop(); return true; }
+    const last = readActivity() ?? Date.now();
+    if (Date.now() - last >= IDLE_TIMEOUT_MS) { void endSession("闲置 15 分钟，已退出账号。请重新登录。", true); return false; }
+    if (readActivity() === null) localStorage.setItem(activityKey, JSON.stringify({ uid: state.user.id, at: last }));
+    idle.start(last); return true;
+  }
+  async function endSession(reason, remote = false, requireLogin = true) {
+    if (ending) return;
+    ending = true; generation++;
+    const uid = state.user?.id, hadCloud = active;
+    active = false; state = { user: null, space: null }; idle.stop();
+    if (requireLogin) localStorage.setItem("love-os.require-login", "1");
+    localStorage.setItem("love-os.sync-mode", "local");
+    loginForm.reset();
+    panel.querySelector("[data-invite-code]").value = ""; panel.querySelector("[data-invite-code]").hidden = true;
+    panel.querySelector("[data-copy]").hidden = true; panel.querySelector("[data-import]").hidden = true;
+    panel.querySelector("[data-local-list]").replaceChildren();
+    if (hadCloud) { onAccountLock(uid); await onRecords([], false, null); }
+    badge.textContent = reason; setMessage(reason); render();
+    try { if (remote) await (await client()).logout(); }
+    catch { setMessage(reason + " 本页内容已清除，云端注销请求未完成，请检查网络。", true); }
+    finally { ending = false; }
+  }
+  async function connectedClient() {
+    const cloud = await client();
+    if (!watching) {
+      watching = true;
+      try {
+        await cloud.observeAuth((event, uid) => {
+          if (event === "SIGNED_OUT" && (state.user || active)) void endSession("登录已退出，请重新登录。");
+          else if (uid && state.user && uid !== state.user.id) void endSession("账号已切换，请重新进入空间。", false, false);
+        });
+      } catch (error) { watching = false; throw error; }
+    }
+    return cloud;
+  }
   async function run(action) {
     panel.querySelectorAll("button").forEach(button => { button.disabled = true; });
     try { await action(); } catch (error) { setMessage(error.message || "请求失败，请重试", true); }
     finally { panel.querySelectorAll("button").forEach(button => { button.disabled = false; }); render(); }
   }
   function render() {
-    loginForm.hidden = Boolean(state.user);
+    loginForm.hidden = legacy || Boolean(state.user);
     connected.hidden = !state.user;
     panel.querySelector("[data-identity]").textContent = state.user ? "已登录：" + (state.user.user_metadata?.username || state.user.username || state.user.id.slice(-8)) : "";
     panel.querySelector("[data-members]").textContent = state.space ? state.space.partner_id ? "已连接两位成员。保存给自己或主动发布。" : "空间已创建，等待另一位加入。" : "创建空间，或填写对方的邀请码加入。";
@@ -34,32 +99,40 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
     panel.querySelector("[data-enter]").hidden = !state.space;
     panel.querySelector("[data-import-open]").hidden = !state.space;
     const homeState = document.querySelector("#home-account-state");
-    if (homeState) homeState.textContent = !state.user ? "登录自己的账号，连接彼此的生活。" : state.space?.partner_id ? "你们已连接 · 私藏与发布，由自己决定。" : "已登录，等待连接你们的两人空间。";
+    if (homeState) homeState.textContent = !state.user ? "登录两人空间" : !active ? "本机手账 · 已登录" : state.space?.partner_id ? "两人空间 · 已连接" : "空间等待对方加入";
+    document.querySelector("#more-account-state").textContent = !state.user ? "登录自己的账号，连接彼此的生活" : state.space?.partner_id ? "已连接彼此 · 管理账号与配对" : "已登录 · 创建或加入两人空间";
+    document.querySelector(".home-footnote").textContent = active ? "私藏的记录，在对应模块里。发布的生活，在共同动态里。" : "当前记录保存在这个浏览器，登录后可进入两人空间。";
     bar.querySelector('[data-mode="local"]').setAttribute("aria-pressed", String(!active));
     bar.querySelector('[data-mode="cloud"]').setAttribute("aria-pressed", String(active));
   }
   async function refresh() {
     if (refreshing || !active || isBusy()) return;
     refreshing = true;
+    const operation = generation;
     try {
-      const cloud = await client();
-      state = await cloud.status();
+      const cloud = await connectedClient();
+      const nextState = await cloud.status();
+      if (operation !== generation || !active) return;
+      state = nextState;
       if (!state.user || !state.space) {
-        active = false; await onRecords(await getLocal(), false, null);
-        badge.textContent = "登录已失效，已回到本机手账"; render(); return;
+        await endSession("登录已失效，请重新登录。"); return;
       }
+      if (!armIdle()) return;
       const next = await cloud.list();
-      if (isBusy() || !active) return;
+      if (isBusy() || !active || operation !== generation) return;
       await onRecords(next, true, state.user.id);
       badge.textContent = "已同步 · " + new Date().toLocaleTimeString("zh-CN", { hour: "2-digit", minute: "2-digit" });
     } catch (error) { badge.textContent = "暂未同步，请重试"; setMessage(error.message, true); }
-    finally { refreshing = false; }
+    finally { refreshing = false; render(); }
   }
   async function enter() {
     if (isBusy()) throw new Error("请先保存或关闭正在编辑的记录");
     if (!state.space) throw new Error("请先创建或加入空间");
-    const cloud = await client();
+    if (!armIdle()) return;
+    const operation = generation;
+    const cloud = await connectedClient();
     const records = await cloud.list();
+    if (operation !== generation || !state.user) return;
     active = true;
     localStorage.setItem("love-os.sync-mode", "cloud");
     await onRecords(records, true, state.user.id);
@@ -68,7 +141,13 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
   async function open() {
     if (isBusy()) { badge.textContent = "请先保存或关闭编辑"; return; }
     panel.showModal(); document.body.classList.add("modal-open");
-    await run(async () => { state = await (await client()).status(); });
+    if (legacy) { render(); return; }
+    const operation = generation;
+    await run(async () => {
+      const next = await (await connectedClient()).status();
+      if (operation !== generation) return;
+      state = next; armIdle();
+    });
   }
   panel.addEventListener("close", () => document.body.classList.toggle("modal-open", Boolean(document.querySelector("dialog[open]"))));
   panel.querySelector("[data-close]").addEventListener("click", () => panel.close());
@@ -84,8 +163,9 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
     event.preventDefault();
     const data = new FormData(loginForm);
     run(async () => {
-      state = await (await client()).login(String(data.get("username")).trim(), String(data.get("password")));
-      loginForm.reset(); setMessage("登录成功，创建或加入你们的空间吧。");
+      state = await (await connectedClient()).login(String(data.get("username")).trim(), String(data.get("password")));
+      lastWrite = 0; touchActivity();
+      loginForm.reset(); setMessage(state.space ? "登录成功，可以进入你们的空间。" : "登录成功，创建或加入你们的空间吧。");
     });
   });
   panel.querySelector("[data-create-space]").addEventListener("click", () => run(async () => {
@@ -105,14 +185,7 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
     run(async () => { state = await (await client()).join(String(code)); setMessage("已加入，可以进入两人空间。"); });
   });
   panel.querySelector("[data-enter]").addEventListener("click", () => run(enter));
-  panel.querySelector("[data-logout]").addEventListener("click", () => run(async () => {
-    await (await client()).logout(); state = { user: null, space: null }; active = false;
-    localStorage.setItem("love-os.sync-mode", "local");
-    panel.querySelector("[data-invite-code]").value = ""; panel.querySelector("[data-invite-code]").hidden = true;
-    panel.querySelector("[data-copy]").hidden = true; panel.querySelector("[data-import]").hidden = true;
-    panel.querySelector("[data-local-list]").replaceChildren();
-    await onRecords(await getLocal(), false, null); badge.textContent = "记录保存在本机"; setMessage("已退出账号");
-  }));
+  panel.querySelector("[data-logout]").addEventListener("click", () => run(() => endSession("已退出账号，云端内容已从本页清除。", true)));
   panel.querySelector("[data-import-open]").addEventListener("click", () => run(async () => {
     const local = await getLocal();
     const list = panel.querySelector("[data-local-list]"); list.replaceChildren();
@@ -142,10 +215,18 @@ export function setupSync({ getLocal, onRecords, isBusy }) {
       setMessage(`已上传 ${count} 条，已存在的记录自动跳过。本机原件保留。`);
     });
   });
+  render();
   const timer = setInterval(() => { if (!document.hidden) refresh(); }, 15000);
   window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
   window.addEventListener("online", refresh);
-  if (localStorage.getItem("love-os.sync-mode") === "cloud") {
+  for (const event of ["pointerdown", "keydown"]) window.addEventListener(event, e => { if (e.isTrusted) touchActivity(); }, { passive: true });
+  window.addEventListener("storage", e => {
+    if (e.key === "love-os.require-login" && e.newValue === "1" && (state.user || active)) void endSession("其他页面已退出账号，请重新登录。");
+    if (e.key === activityKey && state.user) armIdle();
+  });
+  document.addEventListener("visibilitychange", () => { if (!document.hidden && state.user) armIdle(); });
+  window.addEventListener("pageshow", () => { if (state.user) armIdle(); if (active) refresh(); });
+  if (!legacy && localStorage.getItem("love-os.sync-mode") === "cloud") {
     active = true; badge.textContent = "正在连接两人空间…"; refresh();
   }
   return {
