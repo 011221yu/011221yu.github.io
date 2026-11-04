@@ -9,7 +9,7 @@
   nodes=nodes.filter(Boolean);if(!nodes.length)return;const d=make('details','study-help'),s=make('summary','',title);d.append(s,...nodes);parent.append(d);return d;
  }
  function header(id){
-  const h=one('#'+id+'>article.card');if(!h||h.dataset.studyHeader)return;h.dataset.studyHeader='1';h.classList.add('study-header');const toolbar=one(':scope>.gd-toolbar',h);if(!toolbar)return;
+  const h=one('#'+id+'>article.card');if(!h||h.dataset.studyHeader||h.hasAttribute('data-foundation-header'))return;h.dataset.studyHeader='1';h.classList.add('study-header');const toolbar=one(':scope>.gd-toolbar',h);if(!toolbar)return;
   const ps=all(':scope>p',h),extra=[];
   if(id==='essay'){
    if(ps[0]){const original=ps[0].cloneNode(true);extra.push(original);ps[0].textContent=GongkaoEssay.lessons.length+'个学习单元 · 12组段落练笔 · 本机'+(essayPack?.questions.length||0)+'道原书题＋2道原创作文'}
