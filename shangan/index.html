@@ -81,7 +81,7 @@
 <script>
 const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
 const DAY=86400000, pad=n=>String(n).padStart(2,'0'), dateKey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
-const today=new Date(), today0=new Date(today.getFullYear(),today.getMonth(),today.getDate());
+let today=new Date(), today0=new Date(today.getFullYear(),today.getMonth(),today.getDate());
 const initial={start:'2026-10-10',exam:'2026-11-29',examTargets:[{id:'guokao',name:'国考',date:'2026-11-29',month:'',source:'user'},{id:'guangdong',name:'广东省考',date:'2026-12-05',month:'',source:'user'},{id:'shiye',name:'事业编',date:'',month:'2027-03',source:'user'}],done:{},custom:[],mistakes:[],review:{},stats:{},notes:{},studyNotes:[],studyLogs:[],planner:{settings:{studyStart:'09:50',studyEnd:'20:50',studyDayHours:8,restDayHours:0,restSundays:[],restSundayAnchor:'',confirmed:false},dayHours:{},days:{}},practice:{history:[],currentId:'',module:'全部'},jobs:{profile:{},rows:[],sourceType:'广东省考'}};
 let state=GongkaoData.load(localStorage,initial);
 function persist(){localStorage.setItem(GongkaoData.STORAGE_KEY,JSON.stringify(state))}
@@ -365,7 +365,7 @@ function openPage(id){if(id==='today')renderTodaySignals();$$('.page').forEach(x
 function renderAll(){updateChrome();renderToday();renderTodaySignals();renderPlan();renderCourses();renderRecords();renderJobs();renderStudyNotes();renderMistakes();renderReview();renderStats();renderData()}
 $$('.nav-btn').forEach(x=>x.onclick=()=>openPage(x.dataset.page));$('#menu').onclick=()=>{$('#side').classList.add('open');$('#overlay').classList.add('show')};$('#overlay').onclick=()=>{$('#side').classList.remove('open');$('#overlay').classList.remove('show')};$('#addQuick').onclick=addTask;$('#imageViewerClose').onclick=()=>$('#imageViewer').close();$('#imageViewer').onclick=event=>{if(event.target===$('#imageViewer'))$('#imageViewer').close()};
 renderAll();
-if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js',{updateViaCache:'none'}).catch(error=>console.warn('离线组件暂未更新',error.message));
 </script>
 <script src="local-materials.js"></script>
 <script src="migration-help.js"></script>
@@ -392,5 +392,6 @@ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(
 <script src="cloud-sync.js"></script>
 <script src="foundation-week.js"></script>
 <script src="study-layout.js"></script>
+<script src="mobile-runtime.js"></script>
 </body>
 </html>

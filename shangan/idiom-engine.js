@@ -89,5 +89,13 @@
    return {...validate({format:'shangan-idioms-v1',revision:'huasheng-20261102',title:file.name.replace(/\.pdf$/i,''),pages:pdf.numPages,entries}),pdf:new Blob([original],{type:'application/pdf'})};
   }finally{if(pdf)await pdf.destroy()}
  }
- root.GongkaoIdioms={validate,words,plan,grade,importPdf};
+ async function importBook(file,onProgress=()=>{},providedLibrary){
+  if(!file)throw new Error('请选择成语原PDF或手机轻量JSON词库包');
+  if(/\.pdf$/i.test(file.name))return importPdf(file,onProgress,providedLibrary);
+  if(!/\.json(?:\.gz)?$/i.test(file.name)||file.size>5*1024*1024)throw new Error('请选择5MB以内的成语轻量JSON词库包，或原PDF');
+  let raw;if(/\.gz$/i.test(file.name)){if(typeof DecompressionStream==='undefined')throw new Error('此手机暂不支持压缩包，请使用未压缩的 .json 轻量词库');raw=await new Response(file.stream().pipeThrough(new DecompressionStream('gzip'))).text()}else raw=await file.text();
+  let p;try{p=JSON.parse(raw)}catch(e){throw new Error('词库包内容无法读取，请重新选择完整的JSON文件')}
+  validate(p);return {format:p.format,revision:p.revision,title:typeof p.title==='string'?p.title:'花生成语手机词库',pages:p.pages,entries:p.entries,portable:true};
+ }
+ root.GongkaoIdioms={validate,words,plan,grade,importPdf,importBook};
 })(globalThis);

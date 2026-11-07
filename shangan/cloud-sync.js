@@ -6,7 +6,7 @@ const cloudDevice=localStorage.getItem('shangan-device-id')||crypto.randomUUID()
 const cloudNames={gd:'广东题库与原题图','idioms-v1':'成语词库与原PDF','national-pdfs':'全国时政原PDF','essay-library':'申论方法原页与专项题'};
 let cloudDbPromise;
 function cloudDb(){return cloudDbPromise||(cloudDbPromise=new Promise((resolve,reject)=>{const r=indexedDB.open('shangan-cloud-sync',1);r.onupgradeneeded=()=>r.result.createObjectStore('data');r.onsuccess=()=>resolve(r.result);r.onerror=()=>reject(r.error)}))}
-async function cloudLocal(op,key,value){const d=await cloudDb();return new Promise((resolve,reject)=>{const tx=d.transaction('data',op==='get'?'readonly':'readwrite'),s=tx.objectStore('data'),r=op==='get'?s.get(key):s.put(value,key);tx.oncomplete=()=>resolve(r.result);tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
+async function cloudLocal(op,key,value){const d=await cloudDb();if(op!=='get')return GongkaoLocalMaterials.putStored(d,'data',key,value);return new Promise((resolve,reject)=>{const tx=d.transaction('data'),r=tx.objectStore('data').get(key);tx.oncomplete=()=>{try{resolve(GongkaoLocalMaterials.decodeStored(r.result))}catch(e){reject(e)}};tx.onerror=()=>reject(tx.error);tx.onabort=()=>reject(tx.error)})}
 function cloudCheck(r){if(r.error)throw new Error(r.error.message||String(r.error));return r.data}
 async function cloudRequire(){if(!cloudApp)throw new Error('连接组件尚未就绪，请联网后重试');const data=cloudCheck(await cloudApp.auth.getSession());if(!data?.session||data.session.user?.is_anonymous)throw new Error('请先登录学习账号');return data.session}
 async function cloudSave(){if(cloudEngine&&cloudSession)await cloudLocal('put','sync:'+cloudSession.user.id,{...cloudMeta,doc:cloudEngine.doc})}
