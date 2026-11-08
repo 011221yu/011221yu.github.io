@@ -1,7 +1,7 @@
 /* Refresh the calendar when a home-screen app resumes; learning databases are never cleared. */
 (function(){
  'use strict';
- const editable=new Set(['notes','mistakes','records','jobs']);let rolling=false;
+ let rolling=false,refreshing=false;
  function refreshDate(){
   const now=new Date(),key=dateKey(now),previous=dateKey(today0);if(key===previous||rolling)return false;
   rolling=true;try{
@@ -19,14 +19,20 @@
    save('已切换到 '+key+'，昨天的学习记录已保留');return true;
   }finally{rolling=false}
  }
- async function refreshApp(){
-  refreshDate();persist();const active=document.querySelector('.page.active')?.id;
-  if(editable.has(active)||idiomImportBusy||typeof cloudBusy!=='undefined'&&cloudBusy){save('日期已更新；请先保存当前输入或等资料传输完成，再回到今日页刷新');return}
+ function refreshApp(){
+  if(refreshing)return;refreshing=true;
   const b=$('#appRefresh');b.disabled=true;b.textContent='刷新中…';
-  if('serviceWorker' in navigator)navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(e=>console.warn('新版检查暂未完成',e.message));
-  const url=new URL(location.href);url.searchParams.set('_refresh',Date.now());location.replace(url.href);
+  try{
+   if(!refreshDate()){persist();updateChrome();renderToday();renderTodaySignals();renderPlan();renderReview();renderStats()}
+   // Keep this document and unsaved forms alive; a page navigation can become an HTML download on iOS.
+   if('serviceWorker' in navigator)navigator.serviceWorker.getRegistration().then(r=>r?.update()).catch(e=>console.warn('新版检查暂未完成',e.message));
+   save('今日日期和任务已更新，资料与学习记录已保留');
+  }catch(e){console.error('刷新今日未完成',e);const t=$('#toast');t.textContent='刷新暂未完成，请稍后重试；本机资料未清除';t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000)}
+  finally{b.disabled=false;b.textContent='刷新今日';refreshing=false}
  }
- const button=document.createElement('button');button.id='appRefresh';button.type='button';button.className='btn';button.textContent='刷新';button.title='刷新今日日期与程序，保留本机资料和学习记录';button.onclick=refreshApp;document.querySelector('.top-actions')?.prepend(button);
+ // Older desktop bookmarks may retain a cache-busting parameter. Remove it without another request.
+ const entry=new URL(location.href);if(entry.searchParams.has('_refresh')){entry.searchParams.delete('_refresh');history.replaceState(history.state,'',entry.href)}
+ const button=document.createElement('button');button.id='appRefresh';button.type='button';button.className='btn';button.textContent='刷新今日';button.title='更新今日日期与任务，保留当前输入、资料和学习记录';button.onclick=refreshApp;document.querySelector('.top-actions')?.prepend(button);
  const resume=()=>{if(!document.hidden)refreshDate()};
  document.addEventListener('change',event=>{if(event.target.id==='logDate')event.target.dataset.userDate='1'});
  document.addEventListener('visibilitychange',resume);window.addEventListener('pageshow',resume);window.addEventListener('focus',resume);window.addEventListener('online',resume);
